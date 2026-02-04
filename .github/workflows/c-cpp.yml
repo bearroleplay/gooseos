@@ -1,0 +1,56 @@
+name: Build GooseOS
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:  # Позволяет запускать вручную
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          nasm \
+          gcc \
+          gcc-multilib \
+          make \
+          grub-pc-bin \
+          xorriso \
+          mtools \
+          qemu-system-x86
+    
+    - name: Build GooseOS
+      run: |
+        cd src
+        make clean
+        make
+        ls -la *.iso *.bin
+    
+    - name: Test in QEMU (headless)
+      run: |
+        cd src
+        timeout 10s qemu-system-i386 \
+          -cdrom gooseos.iso \
+          -m 128M \
+          -nographic \
+          -serial stdio \
+          -no-reboot \
+          || true  # Игнорируем таймаут
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: gooseos-build
+        path: |
+          src/kernel.bin
+          src/gooseos.iso
+        retention-days: 7

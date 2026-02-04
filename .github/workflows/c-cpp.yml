@@ -36,7 +36,6 @@ jobs:
     
     - name: Test in QEMU (headless)
       run: |
-        cd src
         timeout 10s qemu-system-i386 \
           -cdrom gooseos.iso \
           -m 128M \
@@ -50,6 +49,6 @@ jobs:
       with:
         name: gooseos-build
         path: |
-          src/kernel.bin
-          src/gooseos.iso
+          kernel.bin
+          gooseos.iso
         retention-days: 7

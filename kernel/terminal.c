@@ -713,31 +713,37 @@ void terminal_execute_command(const char* cmd) {
             // Пытаемся выключить через ACPI (если поддерживается)
             terminal_print("Attempting ACPI shutdown...\n", VGA_COLOR_YELLOW);
             
-            // Способ 1: Через ACPI
+                        // Способ 1: Через ACPI (если поддерживается)
+            // Для 32-битного режима используем правильный синтаксис
             __asm__ volatile(
-                "movw $0x1000, %%ax\n"
-                "movw $0x2000, %%bx\n"
-                "movw $0x0401, %%cx\n"
-                "movw $0x0000, %%dx\n"
-                "int $0x15\n"
-                : : : "ax", "bx", "cx", "dx"
+                "mov $0x604, %%dx\n\t"
+                "mov $0x2000, %%ax\n\t"
+                "out %%ax, %%dx"
+                : : : "ax", "dx"
             );
             
-            // Способ 2: Через порт 0x604 (QEMU и некоторые эмуляторы)
-            __asm__ volatile("outw %0, $0x604" : : "a"((uint16_t)0x2000));
+            // Способ 2: Через порт 0xB004 (Bochs)
+            __asm__ volatile(
+                "mov $0xB004, %%dx\n\t"
+                "mov $0x2000, %%ax\n\t"
+                "out %%ax, %%dx"
+                : : : "ax", "dx"
+            );
             
-            // Способ 3: Через порт 0xB004 (Bochs)
-            __asm__ volatile("outw %0, $0xB004" : : "a"((uint16_t)0x2000));
+            // Способ 3: Через порт 0x4004 (VirtualBox)
+            __asm__ volatile(
+                "mov $0x4004, %%dx\n\t"
+                "mov $0x3400, %%ax\n\t"
+                "out %%ax, %%dx"
+                : : : "ax", "dx"
+            );
             
-            // Способ 4: Через порт 0x4004 (VirtualBox)
-            __asm__ volatile("outw %0, $0x4004" : : "a"((uint16_t)0x3400));
-            
-            // Если всё ещё работаем - показываем сообщение
+                        // Если всё ещё работаем - показываем сообщение
             terminal_print("Shutdown not supported in this environment.\n", VGA_COLOR_RED);
             terminal_print("Use 'reboot' instead or close the emulator.\n", VGA_COLOR_YELLOW);
         }
     }
-     else if (cmd[0] != 0) {
+      else if (cmd[0] != 0) {
         terminal_print("Unknown command: ", VGA_COLOR_RED);
         terminal_print(cmd, VGA_COLOR_WHITE);
         terminal_print("\nType 'help' for commands\n", VGA_COLOR_RED);
@@ -747,13 +753,7 @@ void terminal_execute_command(const char* cmd) {
     if (mode == MODE_COMMAND) {
         terminal_show_prompt();
     }
-}
-    
-    // Показываем промпт ВСЕГДА после выполнения команды (кроме редактора)
-    if (mode == MODE_COMMAND) {
-        terminal_show_prompt();
-    }
-}
+} 
 
 // =============== РЕДАКТОР ===============
 void terminal_start_editor(void) {

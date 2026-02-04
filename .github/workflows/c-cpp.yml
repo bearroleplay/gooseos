@@ -30,7 +30,6 @@ jobs:
     
     - name: Build GooseOS
       run: |
-        cd src
         make clean
         make
         ls -la *.iso *.bin

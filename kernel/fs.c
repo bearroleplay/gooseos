@@ -29,6 +29,8 @@ void fs_init(void) {
     fs_create("welcome.txt", (uint8_t*)welcome, strlen(welcome), 1);  // 1 = файл
 }
 
+// fs.c - оставь ТОЛЬКО ЭТУ ВЕРСИЮ fs_create (без дублирования!)
+
 int fs_create(const char* name, const uint8_t* data, uint32_t size, uint8_t type) {
     // ПРОВЕРКА ИМЕНИ
     if (name == NULL || name[0] == 0) {
@@ -52,19 +54,16 @@ int fs_create(const char* name, const uint8_t* data, uint32_t size, uint8_t type
             fs.entries[i].parent == fs.current_dir &&  // В той же папке!
             strcmp(fs.entries[i].name, name) == 0) {
             free_index = i;
-            // Освобождаем старое место в данных
             break;
         }
     }
     
-    // Вычисляем смещение в данных
+    // Вычисляем смещение в данных (простая стратегия)
     uint32_t offset = fs.file_count * 512;
     
     if (offset + size > fs.data_size) {
-        // Пробуем найти свободное место
-        offset = 0;
-        // Простая реализация - ищем первый подходящий блок
-        // TODO: улучшить аллокацию
+        // Простая реализация: используем конец данных
+        offset = fs.data_size - size;
     }
     
     if (offset + size > fs.data_size) return 0;
@@ -76,53 +75,6 @@ int fs_create(const char* name, const uint8_t* data, uint32_t size, uint8_t type
     fs.entries[free_index].offset = offset;
     fs.entries[free_index].type = type;
     fs.entries[free_index].parent = fs.current_dir;
-    
-    // Копируем данные
-    if (size > 0 && data != NULL) {
-        memcpy(fs.data + offset, data, size);
-    }
-    
-    // Увеличиваем счётчик если новый файл
-    if (free_index >= (int)fs.file_count) {
-        fs.file_count++;
-    }
-    
-    return 1;
-}
-
-int fs_create(const char* name, const uint8_t* data, uint32_t size, uint8_t type) {
-    // Ищем свободный слот
-    int free_index = -1;
-    for (int i = 0; i < FS_MAX_FILES; i++) {
-        if (fs.entries[i].type == 0) {
-            free_index = i;
-            break;
-        }
-    }
-    
-    if (free_index == -1) return 0; // Нет места
-    
-    // Ищем файл с таким же именем (перезапись)
-    for (int i = 0; i < FS_MAX_FILES; i++) {
-        if (fs.entries[i].type != 0 && 
-            fs.entries[i].parent == fs.current_dir &&  // В той же папке!
-            strcmp(fs.entries[i].name, name) == 0) {
-            free_index = i;
-            break;
-        }
-    }
-    
-    // Записываем данные
-    uint32_t offset = fs.file_count * 512;
-    
-    if (offset + size > fs.data_size) return 0;
-    
-    // Сохраняем метаданные
-    strncpy(fs.entries[free_index].name, name, FS_MAX_NAME - 1);
-    fs.entries[free_index].size = size;
-    fs.entries[free_index].offset = offset;
-    fs.entries[free_index].type = type;  // Используем переданный тип!
-    fs.entries[free_index].parent = fs.current_dir;  // Родитель = текущая папка
     
     // Копируем данные
     if (size > 0 && data != NULL) {

@@ -96,6 +96,19 @@ int gooc_compile(const char* source, uint8_t* output, uint32_t max_size) {
                 pos += 4;
             }
         }
+
+        else if (strncmp(trimmed, "syscall", 7) == 0) {
+    char* arg = trimmed + 7;
+    while (*arg == ' ' || *arg == '\t') arg++;
+    
+    if (*arg >= '0' && *arg <= '9') {
+        int syscall_num = atoi(arg);
+        
+        // Генерируем SYSCALL <номер>
+        output[pos++] = OP_SYSCALL;
+        output[pos++] = (uint8_t)syscall_num;
+    }
+}
         
         // ---- АРИФМЕТИЧЕСКИЕ ОПЕРАЦИИ ----
         else if (strcmp(trimmed, "add") == 0) {

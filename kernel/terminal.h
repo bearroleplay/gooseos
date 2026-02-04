@@ -3,6 +3,15 @@
 
 #include "vga.h"
 
+// Объявляем глобальные переменные как extern
+extern uint32_t cursor_x;
+extern uint32_t cursor_y;
+extern uint32_t tick;
+extern int mode;
+
+// Функции терминала
+void terminal_init(void);
+
 // Режимы
 #define MODE_COMMAND 0
 #define MODE_EDITOR 1

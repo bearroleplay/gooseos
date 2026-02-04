@@ -750,10 +750,10 @@ void terminal_execute_command(const char* cmd) {
     }
     
     // Показываем промпт ВСЕГДА после выполнения команды (кроме редактора)
-    if (mode == MODE_COMMAND) {
+    if (mode == MODE_COMMAND) {  // ← СТРОКА 753
         terminal_show_prompt();
     }
-} 
+}  // ← СТРОКА 756
 
 // =============== РЕДАКТОР ===============
 void terminal_start_editor(void) {

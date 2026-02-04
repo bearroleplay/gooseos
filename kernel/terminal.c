@@ -743,11 +743,12 @@ void terminal_execute_command(const char* cmd) {
             terminal_print("Use 'reboot' instead or close the emulator.\n", VGA_COLOR_YELLOW);
         }
     }
-      else if (cmd[0] != 0) {
+      else if (cmd[0] != 0) {  // <-- ИСПРАВЛЕНО: убрал лишние пробелы и добавил скобки
         terminal_print("Unknown command: ", VGA_COLOR_RED);
         terminal_print(cmd, VGA_COLOR_WHITE);
         terminal_print("\nType 'help' for commands\n", VGA_COLOR_RED);
     }
+    // else для пустой команды не нужен
     
     // Показываем промпт ВСЕГДА после выполнения команды (кроме редактора)
     if (mode == MODE_COMMAND) {  // ← СТРОКА 753

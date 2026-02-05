@@ -43,26 +43,26 @@ void vga_set_mode_text(void) {
     );
 }
 
-// Установка палитры VGA (исправленный ассемблер)
 void vga_set_palette(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
     // VGA использует 6 бит на цвет (0-63)
     uint8_t vga_r = r >> 2;
     uint8_t vga_g = g >> 2;
     uint8_t vga_b = b >> 2;
     
-    __asm__ volatile(
+    // Более простой ассемблерный код
+    __asm__ volatile (
         "movb %0, %%al\n"
         "movw $0x3C8, %%dx\n"
         "outb %%al, %%dx\n"
         "movb %1, %%al\n"
-        "incw %%dx\n"
+        "inc %%dx\n"
         "outb %%al, %%dx\n"
         "movb %2, %%al\n"
         "outb %%al, %%dx\n"
         "movb %3, %%al\n"
         "outb %%al, %%dx"
         : 
-        : "r"(index), "r"(vga_r), "r"(vga_g), "r"(vga_b)
+        : "r" (index), "r" (vga_r), "r" (vga_g), "r" (vga_b)
         : "al", "dx"
     );
 }

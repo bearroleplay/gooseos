@@ -15,7 +15,8 @@ KERNEL_C_SRCS = kernel/kernel.c \
                 kernel/libc.c \
                 kernel/goovm.c\
 				kernel/cmos.c \
-				kernel/gooc_simple.c
+				kernel/gooc_simple.c\
+				kernel/graphics.c
 
 KERNEL_ASM_OBJS = $(KERNEL_ASM_SRCS:.asm=.asm.o)
 KERNEL_C_OBJS = $(KERNEL_C_SRCS:.c=.o)
@@ -51,5 +52,6 @@ run: $(ISO)
 clean:
 	rm -f $(KERNEL_OBJS) $(KERNEL_BIN) $(ISO)
 	rm -rf iso
+
 
 .PHONY: all run clean

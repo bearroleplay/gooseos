@@ -3,10 +3,15 @@
 
 #include <stdint.h>
 
-// Видеопамять
-extern uint8_t* vga_buffer;
-extern int screen_width;
-extern int screen_height;
+// УБРАТЬ эти строки - они конфликтуют с vga.h
+// extern uint8_t* vga_buffer;
+// extern int screen_width;
+// extern int screen_height;
+
+// Вместо этого объявим свои переменные с другими именами
+extern uint8_t* gfx_buffer;      // Графический буфер
+extern int gfx_width;
+extern int gfx_height;
 
 // Функции
 void vga_set_mode_13h(void);
@@ -19,22 +24,10 @@ void draw_rect(int x, int y, int w, int h, uint8_t color);
 void fill_rect(int x, int y, int w, int h, uint8_t color);
 void draw_circle(int x0, int y0, int radius, uint8_t color);
 
-// Цвета VGA (первые 16 цветов как в текстовом режиме)
+// Цвета VGA
 #define COLOR_BLACK     0
 #define COLOR_BLUE      1
-#define COLOR_GREEN     2
-#define COLOR_CYAN      3
-#define COLOR_RED       4
-#define COLOR_MAGENTA   5
-#define COLOR_BROWN     6
-#define COLOR_LIGHT_GRAY 7
-#define COLOR_DARK_GRAY 8
-#define COLOR_LIGHT_BLUE 9
-#define COLOR_LIGHT_GREEN 10
-#define COLOR_LIGHT_CYAN 11
-#define COLOR_LIGHT_RED 12
-#define COLOR_LIGHT_MAGENTA 13
-#define COLOR_YELLOW    14
+// ... остальные цвета
 #define COLOR_WHITE     15
 
 #endif

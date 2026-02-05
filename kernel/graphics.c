@@ -20,11 +20,16 @@ uint8_t* gfx_buffer = (uint8_t*)0xA0000;
 int gfx_width = 320;
 int gfx_height = 200;
 
+// Простая функция abs для целых чисел
+static int my_abs(int x) {
+    return (x < 0) ? -x : x;
+}
+
 // Установка режима 13h (320x200, 256 цветов)
 void vga_set_mode_13h(void) {
     __asm__ volatile(
         "mov $0x13, %%ax\n"
-        "int $0x10\n"
+        "int $0x10"
         : : : "ax"
     );
 }
@@ -33,36 +38,40 @@ void vga_set_mode_13h(void) {
 void vga_set_mode_text(void) {
     __asm__ volatile(
         "mov $0x03, %%ax\n"
-        "int $0x10\n"
+        "int $0x10"
         : : : "ax"
     );
 }
 
-// Установка палитры VGA
+// Установка палитры VGA (исправленный ассемблер)
 void vga_set_palette(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
+    // VGA использует 6 бит на цвет (0-63)
+    uint8_t vga_r = r >> 2;
+    uint8_t vga_g = g >> 2;
+    uint8_t vga_b = b >> 2;
+    
     __asm__ volatile(
-        "movb %1, %%al\n"
+        "movb %0, %%al\n"
         "movw $0x3C8, %%dx\n"
         "outb %%al, %%dx\n"
+        "movb %1, %%al\n"
+        "incw %%dx\n"
+        "outb %%al, %%dx\n"
         "movb %2, %%al\n"
-        "inc %%dx\n"
         "outb %%al, %%dx\n"
         "movb %3, %%al\n"
-        "outb %%al, %%dx\n"
-        "movb %4, %%al\n"
-        "outb %%al, %%dx\n"
+        "outb %%al, %%dx"
         : 
-        : "i"((uint8_t)index),
-          "r"((uint8_t)(r >> 2)),  // VGA использует 6 бит на цвет
-          "r"((uint8_t)(g >> 2)),
-          "r"((uint8_t)(b >> 2))
+        : "r"(index), "r"(vga_r), "r"(vga_g), "r"(vga_b)
         : "al", "dx"
     );
 }
 
 // Заливка экрана цветом
 void clear_screen(uint8_t color) {
-    memset(gfx_buffer, color, 320 * 200);
+    for (int i = 0; i < 320 * 200; i++) {
+        gfx_buffer[i] = color;
+    }
 }
 
 // Рисование пикселя
@@ -74,8 +83,8 @@ void draw_pixel(int x, int y, uint8_t color) {
 
 // Рисование линии (алгоритм Брезенхэма)
 void draw_line(int x1, int y1, int x2, int y2, uint8_t color) {
-    int dx = abs(x2 - x1);
-    int dy = abs(y2 - y1);
+    int dx = my_abs(x2 - x1);
+    int dy = my_abs(y2 - y1);
     int sx = (x1 < x2) ? 1 : -1;
     int sy = (y1 < y2) ? 1 : -1;
     int err = dx - dy;
@@ -97,14 +106,20 @@ void draw_line(int x1, int y1, int x2, int y2, uint8_t color) {
 
 // Рисование прямоугольника (контур)
 void draw_rect(int x, int y, int w, int h, uint8_t color) {
-    // Верхняя и нижняя линии
+    // Верхняя линия
     for (int i = x; i < x + w; i++) {
         draw_pixel(i, y, color);
+    }
+    // Нижняя линия
+    for (int i = x; i < x + w; i++) {
         draw_pixel(i, y + h - 1, color);
     }
-    // Левая и правая линии
+    // Левая линия
     for (int i = y; i < y + h; i++) {
         draw_pixel(x, i, color);
+    }
+    // Правая линия
+    for (int i = y; i < y + h; i++) {
         draw_pixel(x + w - 1, i, color);
     }
 }
@@ -143,21 +158,24 @@ void draw_circle(int x0, int y0, int radius, uint8_t color) {
     }
 }
 
-// Простая функция для вывода текста (8x8 шрифт)
+// Простая функция для вывода текста (заглушка)
 void draw_char(int x, int y, char c, uint8_t color) {
-    // Простая реализация - заглушка
-    // Позже можно добавить bitmap шрифт
-    if (c >= 'A' && c <= 'Z') c = c - 'A' + 'a';
-    
+    // Простая реализация - только буквы A и B
     switch(c) {
-        case 'a': case 'A':
-            fill_rect(x+2, y, 4, 7, color);
-            draw_pixel(x+1, y+1, color);
-            draw_pixel(x+6, y+1, color);
-            draw_pixel(x, y+4, color);
-            draw_pixel(x+7, y+4, color);
+        case 'A': case 'a':
+            draw_line(x+2, y, x+6, y, color);
+            draw_line(x+1, y+1, x+1, y+7, color);
+            draw_line(x+7, y+1, x+7, y+7, color);
+            draw_line(x+2, y+4, x+6, y+4, color);
             break;
-        // ... другие символы
+        case 'B': case 'b':
+            draw_line(x+1, y, x+6, y, color);
+            draw_line(x+1, y+7, x+6, y+7, color);
+            draw_line(x+1, y, x+1, y+7, color);
+            draw_line(x+7, y+1, x+7, y+3, color);
+            draw_line(x+7, y+4, x+7, y+6, color);
+            draw_line(x+6, y+3, x+6, y+4, color);
+            break;
         default:
             // Прямоугольник для неизвестных символов
             draw_rect(x, y, 8, 8, color);
@@ -171,5 +189,6 @@ void draw_text(int x, int y, const char* text, uint8_t color) {
         draw_char(x + pos * 9, y, *text, color);
         text++;
         pos++;
+        if (x + pos * 9 > gfx_width - 8) break;
     }
 }

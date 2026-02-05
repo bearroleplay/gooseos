@@ -27,6 +27,7 @@ static char current_file[64] = "program.goo";
 extern FileSystem fs;
 
 void terminal_scroll(void);
+void terminal_start_calculator(void);
 
 // =============== БАЗОВЫЕ ФУНКЦИИ ===============
 void terminal_newline(void) {
@@ -465,6 +466,9 @@ void terminal_execute_command(const char* cmd) {
         terminal_print("  reboot          - Reboot system\n", VGA_COLOR_LIGHT_GRAY);
         terminal_print("\n", VGA_COLOR_WHITE);
     }
+    else if (strcmp(cmd, "calc") == 0) {
+    terminal_start_calculator();
+}
     else if (strcmp(cmd, "ls") == 0) {
         fs_list();
     }
@@ -597,48 +601,28 @@ void terminal_execute_command(const char* cmd) {
             }
         }
     }
-    else if (strncmp(cmd, "run ", 4) == 0) {
+      else if (strncmp(cmd, "run ", 4) == 0) {
         const char* filename = cmd + 4;
         if (strlen(filename) == 0) {
             terminal_print("Usage: run <filename>\n", VGA_COLOR_RED);
         } else {
-            terminal_print("Running: ", VGA_COLOR_YELLOW);
-            terminal_print(filename, VGA_COLOR_WHITE);
-            terminal_print("\n", VGA_COLOR_YELLOW);
-            
-            // Пробуем как .goobin
-            uint8_t binary[8192];
-            int bytes = fs_read(filename, binary, sizeof(binary));
+            // Читаем файл
+            uint8_t buffer[4096];
+            int bytes = fs_read(filename, buffer, sizeof(buffer));
             
             if (bytes > 0) {
-                GooVM* vm = goovm_create();
-                if (vm && goovm_load(vm, binary, bytes)) {
-                    goovm_execute(vm);
-                    goovm_destroy(vm);
-                }
-            } else {
-                // Пробуем как .goo (автокомпиляция)
-                terminal_print("Auto-compiling...\n", VGA_COLOR_YELLOW);
+                // Автокомпиляция
+                uint8_t binary[8192];
+                int bin_size = gooc_compile((char*)buffer, binary, sizeof(binary));
                 
-                uint8_t source[4096];
-                bytes = fs_read(filename, source, sizeof(source) - 1);
-                
-                if (bytes > 0) {
-                    source[bytes] = 0;
-                    uint8_t binary[8192];
-                    int bin_size = gooc_compile((char*)source, binary, sizeof(binary));
-                    
-                    if (bin_size > 0) {
-                        GooVM* vm = goovm_create();
-                        if (vm && goovm_load(vm, binary, bin_size)) {
-                            goovm_execute(vm);
-                            goovm_destroy(vm);
-                        }
-                    } else {
-                        terminal_print("✗ Compilation failed\n", VGA_COLOR_RED);
+                if (bin_size > 0) {
+                    // Запускаем БЕЗ отладки
+                    GooVM* vm = goovm_create();
+                    if (vm) {
+                        goovm_load(vm, binary, bin_size);
+                        goovm_execute(vm);  // Тихо!
+                        goovm_destroy(vm);
                     }
-                } else {
-                    terminal_print("✗ File not found\n", VGA_COLOR_RED);
                 }
             }
         }
@@ -764,12 +748,11 @@ void terminal_start_editor(void) {
     // ВСЕ координаты Y + BANNER_HEIGHT!
     terminal_print_at("+--------------------------------------+", 0, 0 + BANNER_HEIGHT, VGA_COLOR_CYAN);
     terminal_print_at("|        GOOSE OS EDITOR v1.0 Beta   |", 0, 1 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-    terminal_print_at("| Ctrl+S: Save | Ctrl+R: Run .goo    |", 0, 2 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    terminal_print_at("| Ctrl+S: Save | Ctrl+R: RUN .goo    |", 0, 2 + BANNER_HEIGHT, VGA_COLOR_CYAN);
     terminal_print_at("| Ctrl+N: New  | Ctrl+O: Open        |", 0, 3 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-    terminal_print_at("| Editor  is unstable now!           |", 0, 3 + BANNER_HEIGHT, VGA_COLOR_RED);
     terminal_print_at("+--------------------------------------+", 0, 4 + BANNER_HEIGHT, VGA_COLOR_CYAN);
     
-    // Боковые границы (начинаем с 5-й строки после баннера)
+    // Боковые границы
     for (int y = 5; y < VGA_HEIGHT - 2 - BANNER_HEIGHT; y++) {
         vga_putchar('|', VGA_COLOR_CYAN, 0, y + BANNER_HEIGHT);
         vga_putchar('|', VGA_COLOR_CYAN, 41, y + BANNER_HEIGHT);
@@ -778,19 +761,48 @@ void terminal_start_editor(void) {
     // Нижняя граница
     terminal_print_at("+--------------------------------------+", 0, VGA_HEIGHT - 2, VGA_COLOR_CYAN);
     
+    // ===== ПРАВАЯ ПАНЕЛЬ С СООБЩЕНИЕМ =====
+    // Верхняя граница правой панели
+    terminal_print_at("+-----------------------------------+", 42, 5 + BANNER_HEIGHT, VGA_COLOR_BLUE);
+    
+    // Заголовок правой панели
+    terminal_print_at("|      GooseScript Compiler       |", 42, 6 + BANNER_HEIGHT, VGA_COLOR_BLUE);
+    terminal_print_at("+-----------------------------------+", 42, 7 + BANNER_HEIGHT, VGA_COLOR_BLUE);
+    
+    // Сообщение о статусе
+    terminal_print_at("| STATUS: TEMPORARILY DISABLED   |", 42, 8 + BANNER_HEIGHT, VGA_COLOR_RED);
+    terminal_print_at("|                                |", 42, 9 + BANNER_HEIGHT, VGA_COLOR_BLUE);
+    terminal_print_at("| The GooseScript compiler is    |", 42, 10 + BANNER_HEIGHT, VGA_COLOR_WHITE);
+    terminal_print_at("| currently unstable. We're      |", 42, 11 + BANNER_HEIGHT, VGA_COLOR_WHITE);
+    terminal_print_at("| working on fixes!              |", 42, 12 + BANNER_HEIGHT, VGA_COLOR_WHITE);
+    terminal_print_at("|                                |", 42, 13 + BANNER_HEIGHT, VGA_COLOR_BLUE);
+    terminal_print_at("| Use the built-in commands:     |", 42, 14 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    terminal_print_at("|  • ls    - List files          |", 42, 15 + BANNER_HEIGHT, VGA_COLOR_LIGHT_GRAY);
+    terminal_print_at("|  • cat   - View file           |", 42, 16 + BANNER_HEIGHT, VGA_COLOR_LIGHT_GRAY);
+    terminal_print_at("|  • edit  - Edit file           |", 42, 17 + BANNER_HEIGHT, VGA_COLOR_LIGHT_GRAY);
+    terminal_print_at("|  • clear - Clear screen        |", 42, 18 + BANNER_HEIGHT, VGA_COLOR_LIGHT_GRAY);
+    terminal_print_at("|                                |", 42, 19 + BANNER_HEIGHT, VGA_COLOR_BLUE);
+    terminal_print_at("| Check back later for updates!  |", 42, 20 + BANNER_HEIGHT, VGA_COLOR_YELLOW);
+    terminal_print_at("+-----------------------------------+", 42, 21 + BANNER_HEIGHT, VGA_COLOR_BLUE);
+    
+    // Боковые границы правой панели
+    for (int y = 8; y < 21; y++) {
+        vga_putchar('|', VGA_COLOR_BLUE, 42, y + BANNER_HEIGHT);
+        vga_putchar('|', VGA_COLOR_BLUE, 77, y + BANNER_HEIGHT);
+    }
+    
     // Статус бар (последняя строка экрана)
     update_status_bar();
     
     // Позиция курсора в редакторе (первая строка текста)
     editor_x = 1;
-    editor_y = 6 + BANNER_HEIGHT;  // ← ВАЖНО: + BANNER_HEIGHT!
+    editor_y = 6 + BANNER_HEIGHT;
     editor_pos = 0;
     memset(editor_buffer, 0, sizeof(editor_buffer));
     
     cursor_x = editor_x;
     cursor_y = editor_y;
 }
-
 // Обновление статус-бара
 void update_status_bar(void) {
     // Очищаем строку статус-бара (последняя строка)
@@ -815,9 +827,8 @@ void update_status_bar(void) {
     
     // Статус бар внизу экрана
     terminal_print_at(status, 1, VGA_HEIGHT - 1, VGA_COLOR_LIGHT_GRAY);
-    terminal_print_at("Ctrl+Q=Exit", 55, VGA_HEIGHT - 1, VGA_COLOR_YELLOW);
+    terminal_print_at("Ctrl+Q=Exit | GooseScript: DISABLED", 50, VGA_HEIGHT - 1, VGA_COLOR_DARK_GRAY);
 }
-
 void terminal_editor_handle_key(char key) {
     // Ctrl+Q - Выход
     if (keyboard_get_ctrl() && (key == 'q' || key == 'Q')) {
@@ -833,9 +844,16 @@ void terminal_editor_handle_key(char key) {
         return;
     }
     
-    // Ctrl+R - Запустить .goo
-    if (keyboard_get_ctrl() && (key == 'r' || key == 'R')) {
-        terminal_run_goo();
+     if (keyboard_get_ctrl() && (key == 'r' || key == 'R')) {
+        // Мигающее сообщение в правой панели
+        terminal_print_at("|      *** NOT AVAILABLE ***      |", 42, 8 + BANNER_HEIGHT, VGA_COLOR_RED);
+        
+        // Ждем немного
+        for (volatile int i = 0; i < 500000; i++);
+        
+        // Возвращаем обычное сообщение
+        terminal_print_at("| STATUS: TEMPORARILY DISABLED   |", 42, 8 + BANNER_HEIGHT, VGA_COLOR_RED);
+        
         return;
     }
     
@@ -1026,60 +1044,115 @@ void terminal_save_with_prompt(void) {
 }
 
 void terminal_run_goo(void) {
-    // Проверяем расширение
-    char* dot = strrchr(current_file, '.');
-    if (dot && strcmp(dot, ".goo") == 0) {
-        // Очищаем правую панель для вывода
-        for (int y = 6 + BANNER_HEIGHT; y < VGA_HEIGHT - 4; y++) {
-            for (int x = 42; x < VGA_WIDTH; x++) {
-                vga_putchar(' ', VGA_COLOR_BLACK, x, y);
-            }
-        }
-        
-        terminal_print_at("=== Compiling & Running ===", 42, 6 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-        
-        // ИСПОЛЬЗУЕМ РЕАЛЬНЫЙ КОМПИЛЯТОР!
-        uint8_t binary[8192];
-        int bin_size = gooc_compile(editor_buffer, binary, sizeof(binary));
-        
-        if (bin_size > 0) {
-            terminal_print_at("Compilation successful!", 42, 8 + BANNER_HEIGHT, VGA_COLOR_GREEN);
-            
-            // Запускаем через VM
-            GooVM* vm = goovm_create();
-            if (vm) {
-                if (goovm_load(vm, binary, bin_size)) {
-                    // Сохраняем позицию вывода
-                    int output_y = 10 + BANNER_HEIGHT;
-  //                  int output_x = 42;
-                    
-                    // Перехватываем вывод (нужно добавить в goovm)
-                    // Пока просто запускаем
-                    goovm_execute(vm);
-                    
-                    terminal_print_at("Program finished!", 42, output_y, VGA_COLOR_LIGHT_GRAY);
-                }
-                goovm_destroy(vm);
-            }
-        } else {
-            terminal_print_at("Compilation failed!", 42, 8 + BANNER_HEIGHT, VGA_COLOR_RED);
-        }
-        
-        terminal_print_at("Press any key...", 42, VGA_HEIGHT - 4, VGA_COLOR_WHITE);
-        while (!keyboard_getch());
-        
-        // Очищаем область вывода
-        for (int y = 6 + BANNER_HEIGHT; y < VGA_HEIGHT - 4; y++) {
-            for (int x = 42; x < VGA_WIDTH; x++) {
-                vga_putchar(' ', VGA_COLOR_BLACK, x, y);
-            }
-        }
-        
-    } else {
-        terminal_print_at("Not a .goo file!", 20, VGA_HEIGHT - 3, VGA_COLOR_RED);
+    terminal_print_at("Testing terminal_print...", 42, 6 + BANNER_HEIGHT, VGA_COLOR_YELLOW);
+    
+    // Сохраняем позицию курсора
+    uint32_t saved_x = cursor_x;
+    uint32_t saved_y = cursor_y;
+    
+    // Переходим на новую строку для вывода
+    cursor_x = 0;
+    cursor_y = VGA_HEIGHT - 10;
+    
+    // Пробуем напечатать напрямую
+    terminal_print("DIRECT PRINT TEST: ", VGA_COLOR_RED);
+    terminal_print("Hello!", VGA_COLOR_GREEN);
+    terminal_print("\n", VGA_COLOR_WHITE);
+    
+    // Восстанавливаем курсор
+    cursor_x = saved_x;
+    cursor_y = saved_y;
+    
+    // Теперь тест VM
+    terminal_print_at("Now testing VM...", 42, 7 + BANNER_HEIGHT, VGA_COLOR_YELLOW);
+    // ВКЛЮЧАЕМ ОТЛАДКУ!
+    terminal_print_at("=== DEBUG START ===", 42, 6 + BANNER_HEIGHT, VGA_COLOR_YELLOW);
+    
+    // 1. Тестовая программа вручную
+    uint8_t binary[256];
+    uint32_t pos = 0;
+    
+    terminal_print_at("Creating test program...", 42, 7 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    
+    // Простейшая программа: PUSH 65, SYSCALL PRINT_INT (должно напечатать 'A')
+    binary[pos++] = OP_PUSH;
+    int num = 65; // ASCII 'A'
+    memcpy(binary + pos, &num, 4);
+    pos += 4;
+    
+    binary[pos++] = OP_SYSCALL;
+    binary[pos++] = SYS_PRINT_INT;
+    
+    // Exit
+    num = 0;
+    binary[pos++] = OP_PUSH;
+    memcpy(binary + pos, &num, 4);
+    pos += 4;
+    
+    binary[pos++] = OP_SYSCALL;
+    binary[pos++] = SYS_EXIT;
+    binary[pos++] = OP_HALT;
+    
+    // Покажем размер программы
+    char debug[64];
+    itoa(pos, debug, 10);
+    terminal_print_at("Program size: ", 42, 8 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    terminal_print_at(debug, 57, 8 + BANNER_HEIGHT, VGA_COLOR_WHITE);
+    
+    // 2. Создаём VM
+    terminal_print_at("Creating VM...", 42, 9 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    GooVM* vm = goovm_create();
+    
+    if (!vm) {
+        terminal_print_at("FAIL: VM create failed!", 42, 10 + BANNER_HEIGHT, VGA_COLOR_RED);
+        return;
     }
+    
+    terminal_print_at("OK: VM created", 42, 10 + BANNER_HEIGHT, VGA_COLOR_GREEN);
+    
+    // 3. Загружаем программу
+    terminal_print_at("Loading program...", 42, 11 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    if (!goovm_load(vm, binary, pos)) {
+        terminal_print_at("FAIL: Load failed!", 42, 12 + BANNER_HEIGHT, VGA_COLOR_RED);
+        goovm_destroy(vm);
+        return;
+    }
+    
+    terminal_print_at("OK: Program loaded", 42, 12 + BANNER_HEIGHT, VGA_COLOR_GREEN);
+    
+    // 4. Исполняем
+    terminal_print_at("Executing...", 42, 13 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    
+    // Сохраняем текущую позицию курсора для вывода программы
+    uint32_t old_cursor_x = cursor_x;
+    uint32_t old_cursor_y = cursor_y;
+    
+    // Перемещаем курсор туда, где будет вывод программы
+    cursor_x = 0;
+    cursor_y = VGA_HEIGHT - 5; // Выше промпта
+    
+    terminal_print("[PROGRAM OUTPUT START]\n", VGA_COLOR_YELLOW);
+    
+    // ВЫПОЛНЯЕМ!
+    int result = goovm_execute(vm);
+    
+    terminal_print("\n[PROGRAM OUTPUT END]\n", VGA_COLOR_YELLOW);
+    
+    // Покажем результат
+    itoa(result, debug, 10);
+    terminal_print_at("Exit code: ", 42, 14 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    terminal_print_at(debug, 53, 14 + BANNER_HEIGHT, VGA_COLOR_WHITE);
+    
+    // 5. Очищаем
+    goovm_destroy(vm);
+    terminal_print_at("VM destroyed", 42, 15 + BANNER_HEIGHT, VGA_COLOR_GREEN);
+    
+    terminal_print_at("=== DEBUG END ===", 42, 16 + BANNER_HEIGHT, VGA_COLOR_YELLOW);
+    
+    // Восстанавливаем курсор
+    cursor_x = old_cursor_x;
+    cursor_y = old_cursor_y;
 }
-
 void terminal_open_file(void) {
     // Диалог открытия
     vga_putchar('|', VGA_COLOR_CYAN, 0, VGA_HEIGHT - 3);

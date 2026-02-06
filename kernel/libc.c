@@ -192,3 +192,60 @@ char* strtok(char* str, const char* delimiters) {
     
     return token_start;
 }
+long strtol(const char* str, char** endptr, int base) {
+    long result = 0;
+    int sign = 1;
+    
+    // Пропускаем пробелы
+    while (*str == ' ' || *str == '\t') str++;
+    
+    // Знак
+    if (*str == '-') {
+        sign = -1;
+        str++;
+    } else if (*str == '+') {
+        str++;
+    }
+    
+    // Префикс для шестнадцатеричной
+    if (base == 0 || base == 16) {
+        if (*str == '0' && (*(str+1) == 'x' || *(str+1) == 'X')) {
+            base = 16;
+            str += 2;
+        }
+    }
+    
+    // Префикс для восьмеричной
+    if (base == 0) {
+        if (*str == '0') {
+            base = 8;
+        } else {
+            base = 10;
+        }
+    }
+    
+    // Конвертация
+    while (*str) {
+        int digit;
+        if (*str >= '0' && *str <= '9') {
+            digit = *str - '0';
+        } else if (*str >= 'a' && *str <= 'z') {
+            digit = *str - 'a' + 10;
+        } else if (*str >= 'A' && *str <= 'Z') {
+            digit = *str - 'A' + 10;
+        } else {
+            break;
+        }
+        
+        if (digit >= base) break;
+        
+        result = result * base + digit;
+        str++;
+    }
+    
+    if (endptr) {
+        *endptr = (char*)str;
+    }
+    
+    return sign * result;
+}

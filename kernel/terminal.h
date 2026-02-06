@@ -18,6 +18,8 @@ void terminal_init(void);
 
 // Функции терминала
 void terminal_init(void);
+// В terminal.h добавь:
+void terminal_load_file_into_editor(const char* filename);
 void terminal_putchar(char c);
 void terminal_print(const char* str, uint8_t color);
 void terminal_print_at(const char* str, uint32_t x, uint32_t y, uint8_t color);
@@ -26,6 +28,10 @@ void terminal_newline(void);
 void terminal_handle_input(char key);
 void terminal_update(void);
 void terminal_execute_command(const char* cmd);
+void terminal_run_goo(void); 
+void terminal_redraw_editor(void);
+void update_status_bar(void);
+
 
 // Редактор
 void terminal_start_editor(void);

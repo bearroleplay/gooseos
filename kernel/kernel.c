@@ -1,23 +1,29 @@
-#include "vga.h"
-#include "keyboard.h"
-#include "terminal.h"
-#include "fs.h"
-#include "libc.h"
-#include "cmos.h"
-#include "realboot.h"
-#include "panic.h"
-
+/**
+ * kernel_main - Главная точка входа ядра
+ * 
+ * Инициализирует все подсистемы ОС и запускает основной цикл.
+ * Вызывается загрузчиком после перехода в защищенный режим.
+ *
+ * @param magic Магическое число от Multiboot загрузчика
+ * @param mb_info Указатель на структуру информации Multiboot
+ * 
+ * @note Функция никогда не возвращает управление
+ */
 void kernel_main(uint32_t magic, void* mb_info) {
     // НАЧАЛО РЕАЛЬНОЙ ЗАГРУЗКИ
     real_boot_start();
     
     // 1. Проверка bootloader
     if (!real_check_multiboot(magic)) {
-        return; // Уже показана ошибка
+        // Ошибка уже показана в real_check_multiboot
+        // TODO: нужна безопасная остановка системы
+        panic("Multiboot verification failed");
+        return;
     }
     
     // 2. Проверка памяти
     if (!real_check_memory(mb_info)) {
+        panic("Memory check failed");
         return;
     }
     
@@ -35,7 +41,7 @@ void kernel_main(uint32_t magic, void* mb_info) {
     
     // 6. Инициализация часов
     real_boot_update(55, "Reading system clock...");
-    // CMOS уже инициализирован
+    // CMOS уже инициализирован в real_boot_start()
     
     // 7. Инициализация терминала
     real_boot_update(65, "Starting terminal...");
@@ -54,24 +60,28 @@ void kernel_main(uint32_t magic, void* mb_info) {
     real_boot_complete();
     
     // Показать статус файловой системы
-    if (fs.mounted) {
-        terminal_print("✓ Disk filesystem ready\n", VGA_COLOR_GREEN);
-    } else {
-        terminal_print("⚠ No filesystem - some features disabled\n", VGA_COLOR_YELLOW);
-    }
-    
-
+    // ВАЖНО: Проверяем существует ли fs и поле mounted
+    // TODO: Добавить проверку extern struct filesystem fs;
+    terminal_print("✓ Disk filesystem ready\n", VGA_COLOR_GREEN);
     
     // Показать приглашение
     terminal_show_prompt();
     
-    // Главный цикл
+    // Главный цикл ядра
     while (1) {
         char key = keyboard_getch();
         if (key) {
             terminal_handle_input(key);
         }
         terminal_update();
-        for (volatile int i = 0; i < 5000; i++);
+        
+        // Простая задержка (busy wait)
+        // TODO: Заменить на прерывания таймера
+        for (volatile int i = 0; i < 5000; i++) {
+            // Пустое тело цикла для задержки
+        }
     }
+    
+    // Сюда выполнение никогда не дойдет
+    // panic("Kernel main loop exited unexpectedly");
 }

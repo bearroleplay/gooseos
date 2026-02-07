@@ -64,4 +64,23 @@ clean:
 	rm -f $(KERNEL_OBJS) $(KERNEL_BIN) $(ISO) $(DISK_IMG)
 	rm -rf iso
 
+format:
+	@echo "🔧 Форматирование кода..."
+	@./scripts/format_code.sh
+
+check:
+	@echo "🔍 Проверка качества..."
+	@./scripts/check_comments.sh
+
+setup:
+	@echo "⚙️  Настройка окружения..."
+	@chmod +x scripts/*.sh
+	@which clang-format || (echo "Установка clang-format..." && sudo apt-get install -y clang-format)
+
+help:
+	@echo "Доступные команды:"
+	@echo "  make setup   - Настроить окружение"
+	@echo "  make format  - Автоформатирование"
+	@echo "  make check   - Проверка кода"
+
 .PHONY: all run clean

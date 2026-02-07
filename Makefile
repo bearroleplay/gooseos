@@ -66,21 +66,25 @@ clean:
 
 format:
 	@echo "🔧 Форматирование кода..."
-	@./scripts/format_code.sh
+	@bash scripts/format_code.sh
 
 check:
-	@echo "🔍 Проверка качества..."
-	@./scripts/check_comments.sh
+	@echo "🔍 Проверка качества кода..."
+	@bash scripts/check_comments.sh
 
 setup:
 	@echo "⚙️  Настройка окружения..."
+	@sudo apt-get install -y clang-format 2>/dev/null || echo "clang-format уже установлен"
 	@chmod +x scripts/*.sh
-	@which clang-format || (echo "Установка clang-format..." && sudo apt-get install -y clang-format)
+	@echo "✅ Готово! Используйте: make format или make check"
 
 help:
 	@echo "Доступные команды:"
-	@echo "  make setup   - Настроить окружение"
-	@echo "  make format  - Автоформатирование"
-	@echo "  make check   - Проверка кода"
+	@echo "  make setup   - Установить зависимости и дать права"
+	@echo "  make clean   - Очистить скомпилированные файлы"
+	@echo "  make format  - Форматировать код и добавить комментарии"
+	@echo "  make check   - Проверить наличие комментариев"
+	@echo "  make all     = clean + format + check"
 
 .PHONY: all run clean
+

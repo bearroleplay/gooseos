@@ -1,4 +1,5 @@
 #include "libc.c"
+#include "types.h"
 /**
  * kernel_main - Главная точка входа ядра
  * 

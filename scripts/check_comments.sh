@@ -4,125 +4,93 @@ echo "🔍 Проверка комментариев к функциям..."
 echo ""
 
 ERRORS=0
-CHECKED=0
+TOTAL_FUNCS=0
 
-# Ищем все .c файлы
 find . -name "*.c" -type f | while read -r file; do
-    echo "📄 Проверяем: $(basename "$file")"
+    echo "📄 $(basename "$file"):"
     
-    awk -v filename="$file" '
-    BEGIN {
-        errors = 0
-        checked = 0
-        in_comment = 0
-        last_was_comment = 0
-        last_was_empty = 0
-        line_num = 0
-    }
+    func_count=0
+    missing_count=0
     
-    {
-        line_num++
-        line = $0
-    }
+    # Читаем файл построчно
+    line_num=0
+    in_comment=0
     
-    # Многострочные комментарии
-    /\/\*/ { in_comment = 1 }
-    /\*\// { 
-        in_comment = 0
-        last_was_comment = 1
-        next
-    }
-    
-    # Внутри комментария
-    in_comment {
-        last_was_comment = 1
-        next
-    }
-    
-    # Пустые строки
-    /^[[:space:]]*$/ {
-        last_was_empty = 1
-        next
-    }
-    
-    # Однострочные комментарии
-    /^[[:space:]]*\/\// {
-        last_was_comment = 1
-        last_was_empty = 0
-        next
-    }
-    
-    # Пропускаем директивы препроцессора
-    /^[[:space:]]*#/ {
-        last_was_comment = 0
-        last_was_empty = 0
-        next
-    }
-    
-    # Пропускаем объявления типов
-    /^[[:space:]]*(typedef|struct|union|enum)/ {
-        last_was_comment = 0
-        last_was_empty = 0
-        next
-    }
-    
-    # Нашли функцию (не прототип)
-    /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\([^)]*\)[[:space:]]*[^{]*$/ && !/;/ {
-        checked++
+    while IFS= read -r line; do
+        ((line_num++))
         
-        if (last_was_comment == 0) {
-            # Извлекаем имя функции
-            match(line, /[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(/)
-            func_name = substr(line, RSTART, RLENGTH-1)
-            gsub(/[[:space:]]+$/, "", func_name)
+        # Следим за многострочными комментариями
+        if [[ $line =~ "/\*" ]]; then
+            in_comment=1
+        fi
+        if [[ $line =~ "\*/" ]]; then
+            in_comment=0
+            continue
+        fi
+        
+        # Пропускаем если внутри комментария
+        if [[ $in_comment -eq 1 ]]; then
+            continue
+        fi
+        
+        # Ищем определения функций (упрощенно)
+        if [[ $line =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(.*\)[[:space:]]*\{?[[:space:]]*$ ]] && \
+           ! [[ $line =~ ";" ]] && \
+           ! [[ $line =~ ^[[:space:]]*(typedef|struct|enum|union) ]]; then
             
-            printf "   ❌ Строка %d: Функция \"%s\" без комментария\n", line_num, func_name
-            errors++
-        }
-        
-        last_was_comment = 0
-        last_was_empty = 0
-        next
-    }
+            ((func_count++))
+            ((TOTAL_FUNCS++))
+            
+            # Извлекаем имя функции
+            if [[ $line =~ ([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\( ]]; then
+                func_name="${BASH_REMATCH[1]}"
+                
+                # Проверяем есть ли комментарий в 5 строках перед функцией
+                has_comment=0
+                for ((i=1; i<=5; i++)); do
+                    check_line=$((line_num - i))
+                    if [[ $check_line -gt 0 ]]; then
+                        prev_line=$(sed -n "${check_line}p" "$file")
+                        if [[ $prev_line =~ ^[[:space:]]*(/\*|//) ]]; then
+                            has_comment=1
+                            break
+                        fi
+                    fi
+                done
+                
+                if [[ $has_comment -eq 0 ]]; then
+                    echo "   ❌ $func_name() (строка $line_num)"
+                    ((missing_count++))
+                    ((ERRORS++))
+                fi
+            fi
+        fi
+    done < "$file"
     
-    # Все остальные строки
-    {
-        last_was_comment = 0
-        last_was_empty = 0
-    }
-    
-    END {
-        if (errors > 0) {
-            printf "   ⚠️  Найдено %d функций без комментариев\n", errors
-        } else if (checked > 0) {
-            printf "   ✅ Все %d функций документированы\n", checked
-        } else {
-            printf "   ℹ️  Функции не найдены\n"
-        }
-        # Возвращаем количество ошибок
-        exit errors
-    }
-    ' "$file"
-    
-    if [ $? -ne 0 ]; then
-        ERRORS=$((ERRORS + 1))
+    if [[ $missing_count -gt 0 ]]; then
+        echo "   ⚠️  Без комментариев: $missing_count/$func_count"
+    elif [[ $func_count -gt 0 ]]; then
+        echo "   ✅ Все $func_count функций документированы"
+    else
+        echo "   ℹ️  Функции не найдены"
     fi
-    
-    CHECKED=$((CHECKED + 1))
     echo ""
 done
 
 echo "📊 ИТОГО:"
-echo "   Проверено файлов: $CHECKED"
-if [ $ERRORS -eq 0 ]; then
-    echo "   ✅ Все функции имеют комментарии!"
+echo "   Всего функций: $TOTAL_FUNCS"
+echo "   Без комментариев: $ERRORS"
+
+if [[ $ERRORS -eq 0 ]]; then
+    echo "✅ Отлично! Все функции имеют комментарии."
     exit 0
 else
-    echo "   ❌ Найдено проблем: $ERRORS"
+    echo "❌ Найдено $ERRORS функций без комментариев."
     echo ""
-    echo "Рекомендации:"
-    echo "1. Запусти: make format  (добавит автоматические комментарии)"
-    echo "2. Отредактируй автоматические комментарии вручную"
-    echo "3. Запусти: make check   (проверь снова)"
+    echo "Чтобы добавить автоматические комментарии, выполни:"
+    echo "  make format"
+    echo ""
+    echo "Чтобы проверить форматирование:"
+    echo "  make check"
     exit 1
 fi

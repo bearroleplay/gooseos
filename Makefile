@@ -1,90 +1,70 @@
-AS = nasm
-CC = gcc
-LD = ld
-GRUB = grub-mkrescue
+# Основные цели
+.PHONY: all build clean format check help
 
-CFLAGS = -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I.
-LDFLAGS = -m elf_i386 -T kernel/linker.ld -nostdlib
+# Основная цель по умолчанию - сборка
+all: build
 
-KERNEL_ASM_SRCS = kernel/kernel.asm
-KERNEL_C_SRCS = kernel/kernel.c \
-		kernel/vga.c \
-		kernel/keyboard.c \
-		kernel/terminal.c \
-		kernel/fs.c \
-		kernel/libc.c \
-		kernel/cmos.c \
-		kernel/graphics.c \
-		kernel/calc.c \
-		kernel/ata.c \
-		kernel/diskfs.c \
-		kernel/gooc_simple.c \
-		kernel/goovm.c \
-		kernel/panic.c\
-                kernel/bootanim.c\
-                kernel/realboot.c
+# Сборка ОС
+build: clean
+	@echo "🔨 Сборка GooseOS..."
+	nasm -f elf32 kernel/kernel.asm -o kernel/kernel.asm.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/kernel.c -o kernel/kernel.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/vga.c -o kernel/vga.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/keyboard.c -o kernel/keyboard.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/terminal.c -o kernel/terminal.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/fs.c -o kernel/fs.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/libc.c -o kernel/libc.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/cmos.c -o kernel/cmos.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/graphics.c -o kernel/graphics.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/calc.c -o kernel/calc.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/ata.c -o kernel/ata.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/diskfs.c -o kernel/diskfs.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/gooc_simple.c -o kernel/gooc_simple.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/goovm.c -o kernel/goovm.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/panic.c -o kernel/panic.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/bootanim.c -o kernel/bootanim.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/realboot.c -o kernel/realboot.o
+	ld -m elf_i386 -T kernel/linker.ld -nostdlib -o kernel.bin kernel/kernel.asm.o kernel/kernel.o kernel/vga.o kernel/keyboard.o kernel/terminal.o kernel/fs.o kernel/libc.o kernel/cmos.o kernel/graphics.o kernel/calc.o kernel/ata.o kernel/diskfs.o kernel/gooc_simple.o kernel/goovm.o kernel/panic.o kernel/bootanim.o kernel/realboot.o
+	@echo "✅ GooseOS собран!"
 
-KERNEL_ASM_OBJS = $(KERNEL_ASM_SRCS:.asm=.asm.o)
-KERNEL_C_OBJS = $(KERNEL_C_SRCS:.c=.o)
-KERNEL_OBJS = $(KERNEL_ASM_OBJS) $(KERNEL_C_OBJS)
-
-DISK_IMG = gooseos.img
-KERNEL_BIN = kernel.bin
-ISO = gooseos.iso
-
-all: $(ISO)
-
-# Ассемблерные файлы
-kernel/%.asm.o: kernel/%.asm
-	$(AS) -f elf32 $< -o $@
-
-# Си файлы
-kernel/%.o: kernel/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Ядро
-$(KERNEL_BIN): $(KERNEL_OBJS)
-	$(LD) $(LDFLAGS) -o $@ $^
-
-# ISO образ
-$(ISO): $(KERNEL_BIN)
-	mkdir -p iso/boot/grub
-	cp $(KERNEL_BIN) iso/boot/
-	echo 'menuentry "GooseOS v1.0 Beta" { multiboot /boot/kernel.bin boot }' > iso/boot/grub/grub.cfg
-	$(GRUB) -o $@ iso 2>/dev/null
-
-# Создаём пустой диск если его нет
-$(DISK_IMG):
-	dd if=/dev/zero of=$@ bs=1M count=10 2>/dev/null
-
-run: $(ISO) $(DISK_IMG)
-	qemu-system-i386 -cdrom $(ISO) -hda $(DISK_IMG) -m 128M
-
+# Очистка
 clean:
-	rm -f $(KERNEL_OBJS) $(KERNEL_BIN) $(ISO) $(DISK_IMG)
+	@echo "🧹 Очистка проекта..."
+	rm -f kernel/kernel.asm.o kernel/kernel.o kernel/vga.o kernel/keyboard.o kernel/terminal.o kernel/fs.o kernel/libc.o kernel/cmos.o kernel/graphics.o kernel/calc.o kernel/ata.o kernel/diskfs.o kernel/gooc_simple.o kernel/goovm.o kernel/panic.o kernel/bootanim.o kernel/realboot.o kernel.bin gooseos.iso gooseos.img
 	rm -rf iso
 
+# Форматирование кода (ОТДЕЛЬНАЯ команда)
 format:
 	@echo "🔧 Форматирование кода..."
 	@bash scripts/format_code.sh
 
+# Проверка кода (ОТДЕЛЬНАЯ команда)
 check:
 	@echo "🔍 Проверка качества кода..."
 	@bash scripts/check_comments.sh
 
+# Настройка окружения
 setup:
 	@echo "⚙️  Настройка окружения..."
-	@sudo apt-get install -y clang-format 2>/dev/null || echo "clang-format уже установлен"
+	@which clang-format >/dev/null 2>&1 || (echo "Установка clang-format..." && sudo apt-get install -y clang-format)
 	@chmod +x scripts/*.sh
-	@echo "✅ Готово! Используйте: make format или make check"
+	@echo "✅ Готово! Доступные команды:"
+	@echo "   make build  - собрать ОС"
+	@echo "   make clean  - очистить"
+	@echo "   make format - форматировать код"
+	@echo "   make check  - проверить комментарии"
 
+# Справка
 help:
-	@echo "Доступные команды:"
-	@echo "  make setup   - Установить зависимости и дать права"
-	@echo "  make clean   - Очистить скомпилированные файлы"
-	@echo "  make format  - Форматировать код и добавить комментарии"
-	@echo "  make check   - Проверить наличие комментариев"
-	@echo "  make all     = clean + format + check"
-
-.PHONY: all run clean
-
+	@echo "Доступные команды для GooseOS:"
+	@echo ""
+	@echo "  Сборка:"
+	@echo "    make build   - Собрать операционную систему"
+	@echo "    make clean   - Очистить скомпилированные файлы"
+	@echo ""
+	@echo "  Качество кода:"
+	@echo "    make format  - Отформатировать код и добавить комментарии"
+	@echo "    make check   - Проверить наличие комментариев у функций"
+	@echo "    make setup   - Настроить окружение (clang-format + права)"
+	@echo ""
+	@echo "  По умолчанию: make = make build"

@@ -6,13 +6,16 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     
     steps:
     - name: 📥 Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: ⚙️ Setup clang-format
       run: sudo apt-get update && sudo apt-get install -y clang-format
@@ -21,27 +24,39 @@ jobs:
       run: chmod +x scripts/*.sh
     
     - name: 📝 Check formatting
+      id: format-check
       run: |
-        echo "Проверка форматирования..."
-        if find . -name "*.c" -o -name "*.h" | xargs clang-format --dry-run --Werror; then
+        echo "🔍 Проверка форматирования..."
+        if find . -name "*.c" -o -name "*.h" -type f | xargs clang-format --dry-run --Werror 2>/dev/null; then
           echo "✅ Форматирование корректно"
+          echo "result=success" >> $GITHUB_OUTPUT
         else
           echo "❌ Ошибки форматирования"
           echo "Запустите локально: make format"
+          echo "result=failure" >> $GITHUB_OUTPUT
           exit 1
         fi
     
     - name: 💬 Check comments
+      id: comment-check
       run: |
-        echo "Проверка комментариев..."
-        ./scripts/check_comments.sh
+        echo "🔍 Проверка комментариев..."
+        if ./scripts/check_comments.sh; then
+          echo "✅ Все функции документированы"
+          echo "result=success" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Есть функции без комментариев"
+          echo "result=failure" >> $GITHUB_OUTPUT
+          exit 1
+        fi
     
-    - name: 📤 Upload report
+    - name: 📊 Report results
       if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: code-quality-report
-        path: |
-          **/*.c
-          **/*.h
-        retention-days: 1
+      run: |
+        echo "📋 Итоговый отчет:"
+        echo "Форматирование: ${{ steps.format-check.outputs.result || 'не завершено' }}"
+        echo "Комментарии: ${{ steps.comment-check.outputs.result || 'не завершено' }}"
+        echo ""
+        echo "Для исправления локально выполните:"
+        echo "  make format  # автоформатирование"
+        echo "  make check   # проверка"

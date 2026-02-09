@@ -114,7 +114,7 @@ char keyboard_getch(void) {
         if (layout == 0) {
             table = (shift_pressed ^ caps_lock) ? scancode_table_shift : scancode_table;
         } else {
-            table = (shift_pressed ^ caps_lock) ? scancode_table_ru_shift : scancode_table_ru;
+            table = (const char*)((shift_pressed ^ caps_lock) ? scancode_table_ru_shift : scancode_table_ru);  // Исправлено приведение типа
         }
         return table[scancode];
     }
@@ -128,3 +128,5 @@ int keyboard_get_ctrl(void) { return ctrl_pressed; }
 int keyboard_get_alt(void) { return alt_pressed; }
 int keyboard_get_layout(void) { return layout; }
 void keyboard_switch_layout(void) { layout = !layout; }
+
+}  // <-- ДОБАВЬТЕ ЭТУ СКОБКУ!

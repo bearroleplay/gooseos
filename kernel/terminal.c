@@ -1293,10 +1293,8 @@ void vga_scroll_editor(void) {
         vga_putchar(' ', VGA_COLOR_BLACK, x, end_y - 1);
     }
 }
-}
-// =============== ОБНОВЛЕНИЕ ===============
 
+// =============== ОБНОВЛЕНИЕ ===============
 int terminal_get_mode(void) {
     return mode;
-
 }

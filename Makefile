@@ -13,6 +13,7 @@ build: clean
 	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/keyboard.c -o kernel/keyboard.o
 	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/terminal.c -o kernel/terminal.o
 	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/libc.c -o kernel/libc.o
+	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/fs.c -o kernel/fs.o
 	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/cmos.c -o kernel/cmos.o
 	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/graphics.c -o kernel/graphics.o
 	gcc -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -U_FORTIFY_SOURCE -I. -c kernel/calc.c -o kernel/calc.o
@@ -29,7 +30,7 @@ build: clean
 # Очистка
 clean:
 	@echo "🧹 Очистка проекта..."
-	rm -f kernel/kernel.asm.o kernel/kernel.o kernel/vga.o kernel/keyboard.o kernel/terminal.o  kernel/libc.o kernel/cmos.o kernel/graphics.o kernel/calc.o kernel/ata.o kernel/diskfs.o kernel/gooc_simple.o kernel/goovm.o kernel/panic.o kernel/bootanim.o kernel/realboot.o kernel.bin gooseos.iso gooseos.img
+	rm -f kernel/kernel.asm.o kernel/kernel.o kernel/vga.o kernel/keyboard.o kernel/fs.o kernel/terminal.o  kernel/libc.o kernel/cmos.o kernel/graphics.o kernel/calc.o kernel/ata.o kernel/diskfs.o kernel/gooc_simple.o kernel/goovm.o kernel/panic.o kernel/bootanim.o kernel/realboot.o kernel.bin gooseos.iso gooseos.img
 	rm -rf iso
 
 # Форматирование кода (ОТДЕЛЬНАЯ команда)
@@ -67,4 +68,5 @@ help:
 	@echo "    make setup   - Настроить окружение (clang-format + права)"
 	@echo ""
 	@echo "  По умолчанию: make = make build"
+
 

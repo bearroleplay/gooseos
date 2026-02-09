@@ -11,7 +11,7 @@ void kernel_main(uint32_t magic, void* mb_info) {
     (void)mb_info;
     
     keyboard_init();
-    fs_init();          // Инициализация файловой системы
+//    fs_init();          // Инициализация файловой системы
     terminal_init();    // Инициализация терминала (после FS)
     
     // Главный цикл

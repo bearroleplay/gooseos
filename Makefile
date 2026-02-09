@@ -2,7 +2,7 @@
 .PHONY: all build clean format check help
 
 # Основная цель по умолчанию - сборка
-all: build
+all: iso
 
 # Сборка ОС
 build: clean
@@ -31,6 +31,7 @@ build: clean
 clean:
 	@echo "🧹 Очистка проекта..."
 	rm -f kernel/kernel.asm.o kernel/kernel.o kernel/vga.o kernel/keyboard.o kernel/fs.o kernel/terminal.o  kernel/libc.o kernel/cmos.o kernel/graphics.o kernel/calc.o kernel/ata.o kernel/diskfs.o kernel/gooc_simple.o kernel/goovm.o kernel/panic.o kernel/bootanim.o kernel/realboot.o kernel.bin gooseos.iso gooseos.img
+	rm -rf isodir
 
 # Форматирование кода (ОТДЕЛЬНАЯ команда)
 format:
@@ -45,8 +46,17 @@ check:
 iso: build
 	@echo "📀 Создание образа ISO..."
 	mkdir -p isodir/boot/grub
-	cp kernel.bin isodir/boot/kernel.bin
-	cp grub.cfg isodir/boot/grub/grub.cfg
+	cp kernel.bin isodir/boot/
+	@if [ -f grub.cfg ]; then \
+		cp grub.cfg isodir/boot/grub/; \
+	else \
+		echo 'set timeout=5' > isodir/boot/grub/grub.cfg; \
+		echo 'set default=0' >> isodir/boot/grub/grub.cfg; \
+		echo 'menuentry "GooseOS" {' >> isodir/boot/grub/grub.cfg; \
+		echo '    multiboot2 /boot/kernel.bin' >> isodir/boot/grub/grub.cfg; \
+		echo '    boot' >> isodir/boot/grub/grub.cfg; \
+		echo '}' >> isodir/boot/grub/grub.cfg; \
+	fi
 	grub-mkrescue -o gooseos.iso isodir
 	@echo "✅ Образ gooseos.iso создан!"
 
@@ -75,6 +85,7 @@ help:
 	@echo "    make setup   - Настроить окружение (clang-format + права)"
 	@echo ""
 	@echo "  По умолчанию: make = make build"
+
 
 
 

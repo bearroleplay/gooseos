@@ -31,7 +31,6 @@ build: clean
 clean:
 	@echo "🧹 Очистка проекта..."
 	rm -f kernel/kernel.asm.o kernel/kernel.o kernel/vga.o kernel/keyboard.o kernel/fs.o kernel/terminal.o  kernel/libc.o kernel/cmos.o kernel/graphics.o kernel/calc.o kernel/ata.o kernel/diskfs.o kernel/gooc_simple.o kernel/goovm.o kernel/panic.o kernel/bootanim.o kernel/realboot.o kernel.bin gooseos.iso gooseos.img
-	rm -rf iso
 
 # Форматирование кода (ОТДЕЛЬНАЯ команда)
 format:
@@ -68,5 +67,6 @@ help:
 	@echo "    make setup   - Настроить окружение (clang-format + права)"
 	@echo ""
 	@echo "  По умолчанию: make = make build"
+
 
 

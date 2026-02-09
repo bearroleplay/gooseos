@@ -42,6 +42,14 @@ check:
 	@echo "🔍 Проверка качества кода..."
 	@bash scripts/check_comments.sh
 
+iso: build
+	@echo "📀 Создание образа ISO..."
+	mkdir -p isodir/boot/grub
+	cp kernel.bin isodir/boot/kernel.bin
+	cp grub.cfg isodir/boot/grub/grub.cfg
+	grub-mkrescue -o gooseos.iso isodir
+	@echo "✅ Образ gooseos.iso создан!"
+
 # Настройка окружения
 setup:
 	@echo "⚙️  Настройка окружения..."
@@ -67,6 +75,7 @@ help:
 	@echo "    make setup   - Настроить окружение (clang-format + права)"
 	@echo ""
 	@echo "  По умолчанию: make = make build"
+
 
 
 

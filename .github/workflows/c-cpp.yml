@@ -33,7 +33,7 @@ jobs:
         make clean
         chmod +x scripts/*.sh
         make format
-        make
+        make iso
         ls -la *.iso *.bin
     
     - name: Test in QEMU (headless)

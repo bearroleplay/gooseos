@@ -128,5 +128,3 @@ int keyboard_get_ctrl(void) { return ctrl_pressed; }
 int keyboard_get_alt(void) { return alt_pressed; }
 int keyboard_get_layout(void) { return layout; }
 void keyboard_switch_layout(void) { layout = !layout; }
-
-

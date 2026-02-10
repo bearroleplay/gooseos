@@ -77,7 +77,7 @@ run: gooseos.iso disk.img
 		-m 256 \
 		-no-reboot \
 		-no-shutdown \
-		-name "GooseOS v1.0"
+		-name "GooseOS v1.0"\
 
 # Быстрый запуск (без сообщений)
 qemu: gooseos.iso disk.img
@@ -85,7 +85,7 @@ qemu: gooseos.iso disk.img
 		-cdrom gooseos.iso \
 		-hda disk.img \
 		-serial stdio \
-		-m 256
+		-m 256\
 
 # Отладка
 debug: gooseos.iso disk.img
@@ -96,7 +96,7 @@ debug: gooseos.iso disk.img
 		-hda disk.img \
 		-serial stdio \
 		-m 256 \
-		-s -S
+		-s -S\
 
 # Очистка
 clean:

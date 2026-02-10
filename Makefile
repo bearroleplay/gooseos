@@ -9,15 +9,16 @@ ASM = nasm
 LD = ld
 
 # Флаги
-CFLAGS = -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin
+CFLAGS = -m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin \
+         -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0
 ASMFLAGS = -f elf32
-LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
+LDFLAGS = -m elf_i386 -T kernel/linker.ld -nostdlib
 
 # Исходные файлы ядра
-C_SOURCES = $(wildcard *.c)
+C_SOURCES = $(wildcard kernel/*.c)
 C_OBJECTS = $(C_SOURCES:.c=.o)
-ASM_SOURCES = kernel.asm
-ASM_OBJECTS = kernel_asm.o
+ASM_SOURCES = kernel/kernel.asm
+ASM_OBJECTS = kernel/kernel_asm.o
 
 # Основная цель
 all: gooseos.iso disk.img
@@ -34,7 +35,7 @@ disk.img:
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Компиляция ассемблера
-kernel_asm.o: kernel.asm
+kernel/kernel_asm.o: kernel/kernel.asm
 	$(ASM) $(ASMFLAGS) $< -o $@
 
 # Линковка ядра
@@ -100,7 +101,7 @@ debug: gooseos.iso disk.img
 # Очистка
 clean:
 	@echo "🧹 Очистка..."
-	@rm -f *.o *.bin *.iso *.img
+	@rm -f kernel/*.o *.bin *.iso *.img
 	@rm -rf isodir
 	@echo "✅ Очистка завершена"
 

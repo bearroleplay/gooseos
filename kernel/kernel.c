@@ -10,8 +10,9 @@ void kernel_main(uint32_t magic, void* mb_info) {
     (void)magic;
     (void)mb_info;
     
-    keyboard_init();
     fs_init();          // Инициализация файловой системы
+    keyboard_init();
+    mouse_init();
     terminal_init();    // Инициализация терминала (после FS)
     
     // Главный цикл
@@ -20,6 +21,12 @@ void kernel_main(uint32_t magic, void* mb_info) {
         if (key) {
             terminal_handle_input(key);
         }
+
+        // Обработка мыши (читаем порт если есть данные)
+    if (inb(0x64) & 1) {
+        uint8_t data = inb(0x60);
+        // Можно добавить обработку здесь если нужно
+    }
         
         terminal_update();
         

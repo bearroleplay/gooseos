@@ -3,6 +3,26 @@
 static char heap[65536];
 static size_t heap_ptr = 0;
 
+uint8_t inb(uint16_t port) {
+    uint8_t ret;
+    __asm__ volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
+}
+
+void outb(uint16_t port, uint8_t val) {
+    __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+}
+
+uint16_t inw(uint16_t port) {
+    uint16_t ret;
+    __asm__ volatile("inw %1, %0" : "=a"(ret) : "Nd"(port));
+    return ret;
+}
+
+void outw(uint16_t port, uint16_t val) {
+    __asm__ volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+}
+
 void* memset(void* ptr, int value, size_t num) {
     unsigned char* p = (unsigned char*)ptr;
     while (num--) *p++ = (unsigned char)value;
@@ -25,7 +45,70 @@ int memcmp(const void* ptr1, const void* ptr2, size_t num) {
     }
     return 0;
 }
-
+// Простая реализация sprintf
+int sprintf(char* str, const char* format, ...) {
+    // Простая реализация - только для %s, %d, %x
+    char* ptr = str;
+    const char* fmt = format;
+    
+    while (*fmt) {
+        if (*fmt == '%') {
+            fmt++;
+            switch (*fmt) {
+                case 's': {
+                    // %s - строка
+                    char* arg = *((char**)(&format + 1));
+                    while (*arg) *ptr++ = *arg++;
+                    fmt++;
+                    break;
+                }
+                case 'd':
+                case 'i': {
+                    // %d - целое число
+                    int arg = *((int*)(&format + 1));
+                    char num[32];
+                    itoa(arg, num, 10);
+                    char* n = num;
+                    while (*n) *ptr++ = *n++;
+                    fmt++;
+                    break;
+                }
+                case 'x':
+                case 'X': {
+                    // %x - шестнадцатеричное
+                    int arg = *((int*)(&format + 1));
+                    char num[32];
+                    itoa(arg, num, 16);
+                    char* n = num;
+                    while (*n) *ptr++ = *n++;
+                    fmt++;
+                    break;
+                }
+                case 'c': {
+                    // %c - символ
+                    char arg = *((char*)(&format + 1));
+                    *ptr++ = arg;
+                    fmt++;
+                    break;
+                }
+                case '%': {
+                    *ptr++ = '%';
+                    fmt++;
+                    break;
+                }
+                default:
+                    *ptr++ = '%';
+                    *ptr++ = *fmt++;
+                    break;
+            }
+        } else {
+            *ptr++ = *fmt++;
+        }
+    }
+    
+    *ptr = 0;
+    return ptr - str;
+}
 size_t strlen(const char* str) {
     size_t len = 0;
     while (str[len]) len++;
@@ -248,4 +331,22 @@ long strtol(const char* str, char** endptr, int base) {
     }
     
     return sign * result;
+}
+// Абсолютное значение для int
+int abs(int n) {
+    return (n < 0) ? -n : n;
+}
+
+// Абсолютное значение для long
+long labs(long n) {
+    return (n < 0) ? -n : n;
+}
+
+// Также может понадобиться:
+int max(int a, int b) {
+    return (a > b) ? a : b;
+}
+
+int min(int a, int b) {
+    return (a < b) ? a : b;
 }

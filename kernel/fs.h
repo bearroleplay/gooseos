@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-// Типы файлов
+// Типы файлов (совместимость)
 #define FS_TYPE_NONE 0
 #define FS_TYPE_FILE 1
 #define FS_TYPE_DIR  2
@@ -44,13 +44,11 @@ char* fs_pwd(void);
 void fs_list(void);
 
 // ========== ДЛЯ РЕДАКТОРА ==========
-// Специальные функции для редактора
 int fs_editor_save(const char* name, const char* data, uint32_t size);
 int fs_editor_load(const char* name, char* buffer, uint32_t max_size);
 uint32_t fs_get_file_size(const char* name);
 
 // ========== ДЛЯ VM И КОМПИЛЯТОРА ==========
-// Для работы с GooseScript
 int fs_save_goosebin(const char* source_name, const char* binary_name, 
                      const uint8_t* binary, uint32_t size);
 int fs_load_goosebin(const char* name, uint8_t* buffer, uint32_t size);

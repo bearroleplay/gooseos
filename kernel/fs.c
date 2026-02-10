@@ -16,7 +16,6 @@ void fs_init(void) {
         terminal_print("✓ Filesystem ready\n", VGA_COLOR_GREEN);
     } else {
         terminal_print("⚠ Filesystem not available - using memory\n", VGA_COLOR_YELLOW);
-        // Можно добавить fallback на память
         fs.mounted = 0;
     }
 }
@@ -24,6 +23,7 @@ void fs_init(void) {
 int fs_format(void) {
     terminal_print("Formatting disk...\n", VGA_COLOR_YELLOW);
     
+    // БЕЗ ПАРАМЕТРА!
     if (diskfs_format()) {
         fs.mounted = 1;
         strcpy(fs.current_path, "/");
@@ -40,9 +40,12 @@ void fs_info(void) {
     diskfs_info();
 }
 
-// Файловые операции
+// ========== ФАЙЛОВЫЕ ОПЕРАЦИИ ==========
 int fs_create(const char* name, const uint8_t* data, uint32_t size, uint8_t type) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     
     if (diskfs_create(name, type)) {
         if (type == FS_TYPE_FILE && data && size > 0) {
@@ -54,17 +57,26 @@ int fs_create(const char* name, const uint8_t* data, uint32_t size, uint8_t type
 }
 
 int fs_delete(const char* name) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     return diskfs_delete(name);
 }
 
 int fs_read(const char* name, uint8_t* buffer, uint32_t size) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     return diskfs_read(name, buffer, size);
 }
 
 int fs_write(const char* name, const uint8_t* data, uint32_t size) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     return diskfs_write(name, data, size);
 }
 
@@ -74,18 +86,27 @@ int fs_exists(const char* name) {
 }
 
 int fs_rename(const char* oldname, const char* newname) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     return diskfs_rename(oldname, newname);
 }
 
 int fs_copy(const char* src, const char* dst) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     return diskfs_copy(src, dst);
 }
 
-// Директории
+// ========== ДИРЕКТОРИИ ==========
 int fs_cd(const char* path) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     if (diskfs_cd(path)) {
         char* pwd = diskfs_pwd();
         if (pwd) strcpy(fs.current_path, pwd);
@@ -95,12 +116,18 @@ int fs_cd(const char* path) {
 }
 
 int fs_mkdir(const char* name) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     return diskfs_mkdir(name);
 }
 
 int fs_rmdir(const char* name) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     return diskfs_rmdir(name);
 }
 
@@ -118,7 +145,10 @@ void fs_list(void) {
 
 // ========== ДЛЯ РЕДАКТОРА ==========
 int fs_editor_save(const char* name, const char* data, uint32_t size) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     
     // Проверяем расширение .goo для GooseScript файлов
     const char* dot = strrchr(name, '.');
@@ -130,7 +160,6 @@ int fs_editor_save(const char* name, const char* data, uint32_t size) {
     int result = diskfs_write(name, (const uint8_t*)data, size);
     
     if (result > 0) {
-        char msg[64];
         terminal_print("✓ Saved ", VGA_COLOR_GREEN);
         terminal_print(name, VGA_COLOR_WHITE);
         terminal_print(" (", VGA_COLOR_GREEN);
@@ -146,7 +175,10 @@ int fs_editor_save(const char* name, const char* data, uint32_t size) {
 }
 
 int fs_editor_load(const char* name, char* buffer, uint32_t max_size) {
-    if (!fs.mounted) return 0;
+    if (!fs.mounted) {
+        terminal_print("Filesystem not mounted\n", VGA_COLOR_RED);
+        return 0;
+    }
     
     int size = diskfs_read(name, (uint8_t*)buffer, max_size - 1);
     
@@ -163,16 +195,17 @@ int fs_editor_load(const char* name, char* buffer, uint32_t max_size) {
 uint32_t fs_get_file_size(const char* name) {
     if (!fs.mounted) return 0;
     
-    // Читаем первые байты чтобы получить размер из директории
-    uint8_t buffer[1];
-    int size = diskfs_read(name, buffer, 1);
-    return (size >= 0) ? 4096 : 0; // Заглушка - реальный размер нужно получить из inode
+    // Простая заглушка
+    return 4096;
 }
 
 // ========== ДЛЯ VM И КОМПИЛЯТОРА ==========
 int fs_save_goosebin(const char* source_name, const char* binary_name, 
                      const uint8_t* binary, uint32_t size) {
     if (!fs.mounted) return 0;
+    
+    // Игнорируем source_name как в предупреждении
+    (void)source_name;
     
     // Сохраняем бинарник
     if (diskfs_write(binary_name, binary, size) > 0) {

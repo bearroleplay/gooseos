@@ -7,13 +7,56 @@
 #include "cmos.h"
 #include <string.h>
 #include "gooc_simple.h"
+#include "account.h"
 #define BANNER_HEIGHT 5
+
+static int small_snprintf(char* str, size_t size, const char* format, ...) {
+    char* ptr = str;
+    const char* fmt = format;
+    
+    while (*fmt && (ptr - str) < (int)size - 1) {
+        if (*fmt == '%') {
+            fmt++;
+            if (*fmt == 's') {
+                fmt++;
+                char* arg = *((char**)(&format + 1));
+                while (*arg && (ptr - str) < (int)size - 1) {
+                    *ptr++ = *arg++;
+                }
+            } else if (*fmt == 'd' || *fmt == 'i') {
+                fmt++;
+                int arg = *((int*)(&format + 1));
+                char num[32];
+                itoa(arg, num, 10);
+                char* n = num;
+                while (*n && (ptr - str) < (int)size - 1) {
+                    *ptr++ = *n++;
+                }
+            } else {
+                *ptr++ = '%';
+                if (*fmt) *ptr++ = *fmt++;
+            }
+        } else {
+            *ptr++ = *fmt++;
+        }
+    }
+    *ptr = 0;
+    return ptr - str;
+}
 
 // =============== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===============
 uint32_t cursor_x = 0;              // БЫЛО: static uint32_t cursor_x = 0;
 uint32_t cursor_y = BANNER_HEIGHT;  // БЫЛО: static uint32_t cursor_y = BANNER_HEIGHT;
 uint32_t tick = 0;                  // БЫЛО: static uint32_t tick = 0;
 int mode = MODE_COMMAND;            // БЫЛО: static int mode = MODE_COMMAND;
+
+#define EDITOR_LEFT_X       2
+#define EDITOR_RIGHT_X      42
+#define EDITOR_WIDTH        38
+#define EDITOR_HEIGHT       12        // Фикс: 12 строк редактора
+#define OUTPUT_START_Y      6         // Начало: строка 6
+#define STATUS_BAR_Y        (OUTPUT_START_Y + EDITOR_HEIGHT + 2)  // = 20
+
 
 // Буфер ввода команд
 static char input_buffer[256];
@@ -767,6 +810,110 @@ void terminal_execute_command(const char* cmd) {
                 break;
         }
     }
+    else if (strcmp(tokens[0], "setuser") == 0) {
+    account_show_user_manager();
+}
+else if (strcmp(tokens[0], "users") == 0) {
+    // Быстрый просмотр пользователей
+    terminal_print("\n=== USER LIST ===\n", VGA_COLOR_CYAN);
+    for (int i = 0; i < acct_sys.account_count; i++) {
+        char line[64];
+        const char* type = "USER";
+        if (acct_sys.accounts[i].account_type == ACCOUNT_ADMIN) type = "ADMIN";
+        if (acct_sys.accounts[i].account_type == ACCOUNT_GUEST) type = "GUEST";
+        
+        char num[4];
+        itoa(i + 1, num, 10);
+        terminal_print("  ", VGA_COLOR_WHITE);
+        terminal_print(num, VGA_COLOR_YELLOW);
+        terminal_print(". ", VGA_COLOR_WHITE);
+        terminal_print(acct_sys.accounts[i].username, VGA_COLOR_WHITE);
+        terminal_print(" [", VGA_COLOR_LIGHT_GRAY);
+        
+        if (acct_sys.accounts[i].account_type == ACCOUNT_ADMIN)
+            terminal_print(type, VGA_COLOR_RED);
+        else if (acct_sys.accounts[i].account_type == ACCOUNT_GUEST)
+            terminal_print(type, VGA_COLOR_LIGHT_BLUE);
+        else
+            terminal_print(type, VGA_COLOR_GREEN);
+        
+        terminal_print("]\n", VGA_COLOR_LIGHT_GRAY);
+    }
+}
+else if (strcmp(tokens[0], "whoami") == 0) {
+    if (acct_sys.logged_in && acct_sys.current_account >= 0) {
+        terminal_print("Current user: ", VGA_COLOR_CYAN);
+        terminal_print(acct_sys.accounts[acct_sys.current_account].username, VGA_COLOR_WHITE);
+        
+        // Показываем тип
+        if (acct_sys.accounts[acct_sys.current_account].account_type == ACCOUNT_ADMIN)
+            terminal_print(" (admin)", VGA_COLOR_RED);
+        else if (acct_sys.accounts[acct_sys.current_account].account_type == ACCOUNT_GUEST)
+            terminal_print(" (guest)", VGA_COLOR_LIGHT_BLUE);
+        else
+            terminal_print(" (user)", VGA_COLOR_GREEN);
+        
+        terminal_print("\n", VGA_COLOR_WHITE);
+    } else {
+        terminal_print("Not logged in\n", VGA_COLOR_RED);
+    }
+}
+else if (strcmp(tokens[0], "passwd") == 0) {
+    if (!acct_sys.logged_in) {
+        terminal_print("Not logged in!\n", VGA_COLOR_RED);
+        return;
+    }
+    
+    terminal_print("Change password for: ", VGA_COLOR_YELLOW);
+    terminal_print(acct_sys.accounts[acct_sys.current_account].username, VGA_COLOR_WHITE);
+    terminal_print("\n", VGA_COLOR_WHITE);
+    
+    terminal_print("Current password: ", VGA_COLOR_GREEN);
+    char old_pass[MAX_PASSWORD] = {0};
+    int p_pos = 0;
+    while (1) {
+        char key = keyboard_getch();
+        if (key == '\n') break;
+        if (key == '\b' && p_pos > 0) {
+            p_pos--;
+            terminal_print("\b \b", VGA_COLOR_WHITE);
+        } else if (p_pos < MAX_PASSWORD-1 && key >= 32 && key <= 126) {
+            old_pass[p_pos++] = key;
+            terminal_print("*", VGA_COLOR_WHITE);
+        }
+    }
+    old_pass[p_pos] = 0;
+    
+    terminal_print("\nNew password: ", VGA_COLOR_GREEN);
+    char new_pass[MAX_PASSWORD] = {0};
+    p_pos = 0;
+    while (1) {
+        char key = keyboard_getch();
+        if (key == '\n') break;
+        if (key == '\b' && p_pos > 0) {
+            p_pos--;
+            terminal_print("\b \b", VGA_COLOR_WHITE);
+        } else if (p_pos < MAX_PASSWORD-1 && key >= 32 && key <= 126) {
+            new_pass[p_pos++] = key;
+            terminal_print("*", VGA_COLOR_WHITE);
+        }
+    }
+    new_pass[p_pos] = 0;
+    
+    if (account_change_password(acct_sys.accounts[acct_sys.current_account].username, old_pass, new_pass)) {
+        terminal_print("\nPassword changed!\n", VGA_COLOR_GREEN);
+    } else {
+        terminal_print("\nWrong password!\n", VGA_COLOR_RED);
+    }
+}
+else if (strcmp(tokens[0], "logout") == 0) {
+    account_logout();
+    terminal_print("Logged out\n", VGA_COLOR_YELLOW);
+    terminal_clear_with_banner();
+    account_show_login_manager();
+    terminal_clear_with_banner();
+    terminal_show_prompt();
+}
     else if(strcmp(tokens[0], "reboot") == 0) {
         terminal_print("Rebooting system...\n", VGA_COLOR_RED);
         terminal_print("Press any key to cancel (3 seconds)...\n", VGA_COLOR_YELLOW);
@@ -842,39 +989,30 @@ void terminal_execute_command(const char* cmd) {
 }
 
 // =============== РЕДАКТОР ===============
-void terminal_start_editor(void) {
-    vga_clear();
-    mode = MODE_EDITOR;
+void update_editor_status(void) {
+    if (mode != MODE_EDITOR) return;
     
-    // ВСЕ координаты Y + BANNER_HEIGHT!
-    terminal_print_at("+--------------------------------------+", 0, 0 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-    terminal_print_at("|        GOOSE OS EDITOR v1.0 Beta   |", 0, 1 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-    terminal_print_at("| Ctrl+S: Save | Ctrl+R: RUN .goo    |", 0, 2 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-    terminal_print_at("| Ctrl+N: New  | Ctrl+O: Open        |", 0, 3 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-    terminal_print_at("+--------------------------------------+", 0, 4 + BANNER_HEIGHT, VGA_COLOR_CYAN);
+    char status[80];
+    int line = 1;
+    int col = 1;
     
-    // Боковые границы
-    for (int y = 5; y < VGA_HEIGHT - 2 - BANNER_HEIGHT; y++) {
-        vga_putchar('|', VGA_COLOR_CYAN, 0, y + BANNER_HEIGHT);
-        vga_putchar('|', VGA_COLOR_CYAN, 41, y + BANNER_HEIGHT);
+    // Подсчет строки
+    for (uint32_t i = 0; i < editor_pos; i++) {
+        if (editor_buffer[i] == '\n') line++;
+        if (i == editor_pos - 1) {
+            col = (editor_x - EDITOR_LEFT_X) + 1;
+        }
     }
     
-    // Нижняя граница
-    terminal_print_at("+--------------------------------------+", 0, VGA_HEIGHT - 2, VGA_COLOR_CYAN);
+    small_snprintf(status, sizeof(status), "File: %s | Line: %d | Col: %d | Bytes: %d", 
+                  current_file, line, col, editor_pos);
+    terminal_print_at(status, 2, STATUS_BAR_Y, VGA_COLOR_WHITE);
     
-   
-    // Статус бар (последняя строка экрана)
-    update_status_bar();
-    
-    // Позиция курсора в редакторе (первая строка текста)
-    editor_x = 1;
-    editor_y = 6 + BANNER_HEIGHT;
-    editor_pos = 0;
-    memset(editor_buffer, 0, sizeof(editor_buffer));
-    
-    cursor_x = editor_x;
-    cursor_y = editor_y;
+    // Очищаем старую инфу в правом верхнем углу
+    terminal_print_at("                ", 43, OUTPUT_START_Y, VGA_COLOR_BLACK);
 }
+
+
 // Обновление статус-бара
 void update_status_bar(void) {
     // Очищаем строку статус-бара
@@ -901,159 +1039,224 @@ void update_status_bar(void) {
     terminal_print_at("Ctrl+S=Save | Ctrl+R=Run | Ctrl+Q=Exit", 
                       VGA_WIDTH - 40, VGA_HEIGHT - 1, VGA_COLOR_DARK_GRAY);
 }
+// =============== РЕДАКТОР С РАЗДЕЛЕННЫМ ЭКРАНОМ ===============
+
+#define EDITOR_LEFT_X       2
+#define EDITOR_RIGHT_X      42
+#define EDITOR_WIDTH        38
+#define EDITOR_HEIGHT       12        // Фикс: 12 строк редактора
+#define OUTPUT_START_Y      6         // Начало: строка 6
+#define STATUS_BAR_Y        (OUTPUT_START_Y + EDITOR_HEIGHT + 2)  // = 20      // Начало редактора
+
+// Рисование рамки из + и -
+static void draw_simple_box(int x, int y, int w, int h, uint8_t color, const char* title) {
+    // Верх
+    vga_putchar('+', color, x, y);
+    for (int i = 1; i < w-1; i++) vga_putchar('-', color, x+i, y);
+    vga_putchar('+', color, x+w-1, y);
+    
+    // Бока
+    for (int i = 1; i < h-1; i++) {
+        vga_putchar('+', color, x, y+i);
+        vga_putchar('+', color, x+w-1, y+i);
+    }
+    
+    // Низ
+    vga_putchar('+', color, x, y+h-1);
+    for (int i = 1; i < w-1; i++) vga_putchar('-', color, x+i, y+h-1);
+    vga_putchar('+', color, x+w-1, y+h-1);
+    
+    // Заголовок
+    if (title) {
+        int tx = x + (w - strlen(title))/2;
+        for (int i = 0; title[i]; i++) vga_putchar(title[i], color, tx+i, y);
+    }
+}
+
+static void clear_output_panel(void) {
+    for (int y = OUTPUT_START_Y+1; y < OUTPUT_START_Y + EDITOR_HEIGHT; y++) {
+        for (int x = EDITOR_RIGHT_X+1; x < EDITOR_RIGHT_X + EDITOR_WIDTH-1; x++) {
+            vga_putchar(' ', VGA_COLOR_BLACK, x, y);
+        }
+    }
+}
+static void print_to_output(const char* str, uint8_t color) {
+    static int out_x = EDITOR_RIGHT_X+1;
+    static int out_y = OUTPUT_START_Y+1;
+    
+    while (*str) {
+        if (*str == '\n' || out_x >= EDITOR_RIGHT_X + EDITOR_WIDTH - 2) {
+            out_x = EDITOR_RIGHT_X+1;
+            out_y++;
+            
+            // ПРОВЕРКА ГРАНИЦ - не выходим за рамку!
+            if (out_y >= OUTPUT_START_Y + EDITOR_HEIGHT) {
+                // Прокрутка - двигаем все строки вверх
+                for (int y = OUTPUT_START_Y+1; y < OUTPUT_START_Y + EDITOR_HEIGHT - 1; y++) {
+                    for (int x = EDITOR_RIGHT_X+1; x < EDITOR_RIGHT_X + EDITOR_WIDTH - 1; x++) {
+                        vga_buffer[y * VGA_WIDTH + x] = vga_buffer[(y+1) * VGA_WIDTH + x];
+                    }
+                }
+                // Очищаем последнюю строку
+                for (int x = EDITOR_RIGHT_X+1; x < EDITOR_RIGHT_X + EDITOR_WIDTH - 1; x++) {
+                    vga_putchar(' ', VGA_COLOR_BLACK, x, OUTPUT_START_Y + EDITOR_HEIGHT - 1);
+                }
+                out_y = OUTPUT_START_Y + EDITOR_HEIGHT - 1;
+            }
+        }
+        
+        if (*str != '\n') {
+            vga_putchar(*str, color, out_x, out_y);
+            out_x++;
+        }
+        str++;
+    }
+}
+
+void terminal_start_editor(void) {
+    mode = MODE_EDITOR;
+    vga_clear();
+    
+    // === ЛЕВАЯ ПАНЕЛЬ - РЕДАКТОР ===
+    draw_simple_box(0, OUTPUT_START_Y-1, 41, EDITOR_HEIGHT+2, VGA_COLOR_CYAN, " GOOSE EDITOR ");
+    terminal_print_at("Ctrl+S:Save  Ctrl+R:Run  Ctrl+Q:Exit", 2, OUTPUT_START_Y, VGA_COLOR_LIGHT_GRAY);
+    
+    // === ПРАВАЯ ПАНЕЛЬ - ВЫВОД ===
+    draw_simple_box(41, OUTPUT_START_Y-1, 39, EDITOR_HEIGHT+2, VGA_COLOR_MAGENTA, " GOOSE VM OUTPUT ");
+    terminal_print_at("Ready", 43, OUTPUT_START_Y, VGA_COLOR_GREEN);
+    
+    // === НИЖНЯЯ ПАНЕЛЬ - СТАТУС ===
+    draw_simple_box(0, STATUS_BAR_Y-1, 80, 3, VGA_COLOR_LIGHT_GRAY, " STATUS ");
+    
+    // Очищаем области редактора и вывода
+    for (int y = OUTPUT_START_Y+1; y < OUTPUT_START_Y + EDITOR_HEIGHT; y++) {
+        for (int x = EDITOR_LEFT_X; x < EDITOR_LEFT_X + EDITOR_WIDTH; x++) {
+            vga_putchar(' ', VGA_COLOR_BLACK, x, y);
+        }
+        for (int x = EDITOR_RIGHT_X+1; x < 79; x++) {
+            vga_putchar(' ', VGA_COLOR_BLACK, x, y);
+        }
+    }
+    
+    // Инициализация редактора
+    editor_x = EDITOR_LEFT_X;
+    editor_y = OUTPUT_START_Y+1;
+    cursor_x = editor_x;
+    cursor_y = editor_y;
+    
+    // Загружаем файл
+    char status[80];
+    if (fs_exists(current_file)) {
+        int size = fs_editor_load(current_file, editor_buffer, sizeof(editor_buffer));
+        if (size > 0) {
+            editor_pos = size;
+            editor_buffer[size] = 0;
+            terminal_redraw_editor_text();
+            small_snprintf(status, sizeof(status), "Loaded: %s (%d bytes)", current_file, size);
+        } else {
+            strcpy(status, "New file");
+        }
+    } else {
+        editor_pos = 0;
+        editor_buffer[0] = 0;
+        small_snprintf(status, sizeof(status), "New file: %s", current_file);
+    }
+    terminal_print_at(status, 2, STATUS_BAR_Y, VGA_COLOR_WHITE);
+    
+    // Обновляем статус-бар
+    update_editor_status();
+}
+
+// ДОБАВЛЯЕМ обработку Ctrl+R в terminal_editor_handle_key
 void terminal_editor_handle_key(char key) {
-    // Ctrl+Q - Выход
+    // Ctrl+Q - выход
     if (keyboard_get_ctrl() && (key == 'q' || key == 'Q')) {
         mode = MODE_COMMAND;
-        terminal_clear_with_banner(); // Очищаем с баннером!
+        terminal_clear_with_banner();
         terminal_show_prompt();
         return;
     }
     
-    // Ctrl+S - Сохранить
+    // Ctrl+S - сохранить
     if (keyboard_get_ctrl() && (key == 's' || key == 'S')) {
-        terminal_save_with_prompt();
+        if (fs_editor_save(current_file, editor_buffer, editor_pos)) {
+            terminal_print_at("✓ File saved", 43, OUTPUT_START_Y, VGA_COLOR_GREEN);
+        }
+        update_editor_status();
         return;
     }
     
-     if (keyboard_get_ctrl() && (key == 'r' || key == 'R')) {
-    // Проверяем расширение .goo
-    char* dot = strrchr(current_file, '.');
-    if (dot && strcmp(dot, ".goo") == 0) {
-        // Показываем сообщение о том, что компилятор в разработке
-        terminal_print_at("|      GOOSE COMPILER v0.1        |", 
-                         42, 8 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-        terminal_print_at("|                                |", 
-                         42, 9 + BANNER_HEIGHT, VGA_COLOR_BLUE);
-        terminal_print_at("|  Compiler is under development |", 
-                         42, 10 + BANNER_HEIGHT, VGA_COLOR_YELLOW);
-        terminal_print_at("|  Only simple programs work     |", 
-                         42, 11 + BANNER_HEIGHT, VGA_COLOR_YELLOW);
-        terminal_print_at("|                                |", 
-                         42, 12 + BANNER_HEIGHT, VGA_COLOR_BLUE);
-        terminal_print_at("|  Try:                          |", 
-                         42, 13 + BANNER_HEIGHT, VGA_COLOR_WHITE);
-        terminal_print_at("|    print \"Hello\"              |", 
-                         42, 14 + BANNER_HEIGHT, VGA_COLOR_LIGHT_GRAY);
-        terminal_print_at("|    exit 0                      |", 
-                         42, 15 + BANNER_HEIGHT, VGA_COLOR_LIGHT_GRAY);
-        terminal_print_at("|                                |", 
-                         42, 16 + BANNER_HEIGHT, VGA_COLOR_BLUE);
-        terminal_print_at("|  Press any key to continue...  |", 
-                         42, 17 + BANNER_HEIGHT, VGA_COLOR_LIGHT_GRAY);
-        
-        // Ждём нажатия
-        while (!keyboard_getch());
-        
-        // Восстанавливаем панель
-        terminal_print_at("| STATUS: UNDER DEVELOPMENT      |", 
-                         42, 8 + BANNER_HEIGHT, VGA_COLOR_RED);
-        terminal_print_at("|                                |", 
-                         42, 9 + BANNER_HEIGHT, VGA_COLOR_BLUE);
-        terminal_print_at("| The GooseScript compiler is    |", 
-                         42, 10 + BANNER_HEIGHT, VGA_COLOR_WHITE);
-        terminal_print_at("| currently unstable. We're      |", 
-                         42, 11 + BANNER_HEIGHT, VGA_COLOR_WHITE);
-        terminal_print_at("| working on fixes!              |", 
-                         42, 12 + BANNER_HEIGHT, VGA_COLOR_WHITE);
-    } else {
-        terminal_print_at("Not a .goo file!", 20, VGA_HEIGHT - 3, VGA_COLOR_RED);
-    }
-    return;
-}
-    
-    // Ctrl+O - Открыть файл
-    if (keyboard_get_ctrl() && (key == 'o' || key == 'O')) {
-        terminal_open_file();
+    // Ctrl+R - ЗАПУСТИТЬ
+    if (keyboard_get_ctrl() && (key == 'r' || key == 'R')) {
+        terminal_run_goo();
         return;
     }
     
-    // Ctrl+N - Новый файл
-    if (keyboard_get_ctrl() && (key == 'n' || key == 'N')) {
-        terminal_new_file();
-        return;
-    }
-    
-    // Обычные клавиши
-    if (key == '\n') { // Enter
+    // Enter
+    if (key == '\n') {
         if (editor_pos < sizeof(editor_buffer) - 1) {
             editor_buffer[editor_pos++] = '\n';
-            
-            // Рисуем перевод строки
-            vga_putchar(' ', VGA_COLOR_WHITE, editor_x, editor_y); // Стираем курсор
-            editor_x = 1;
+            editor_x = EDITOR_LEFT_X;
             editor_y++;
             
-            // Проверяем границы редактора
-            if (editor_y >= VGA_HEIGHT - 2) {
-                vga_scroll_editor();
-                editor_y = VGA_HEIGHT - 3;
+            if (editor_y >= OUTPUT_START_Y + EDITOR_HEIGHT) {
+                // Прокрутка
+                for (int y = OUTPUT_START_Y+1; y < OUTPUT_START_Y+EDITOR_HEIGHT-1; y++) {
+                    for (int x = EDITOR_LEFT_X; x < EDITOR_LEFT_X+EDITOR_WIDTH; x++) {
+                        vga_buffer[y * VGA_WIDTH + x] = vga_buffer[(y+1) * VGA_WIDTH + x];
+                    }
+                }
+                editor_y = OUTPUT_START_Y + EDITOR_HEIGHT - 1;
             }
             
-            // Обновляем позицию курсора
             cursor_x = editor_x;
             cursor_y = editor_y;
+            update_editor_status();
         }
-        update_status_bar();
     }
-    else if (key == '\b') { // Backspace
+    // Backspace
+    else if (key == '\b') {
         if (editor_pos > 0) {
             editor_pos--;
             
-            // Стираем символ на экране
-            vga_putchar(' ', VGA_COLOR_BLACK, editor_x, editor_y);
-            
-            // Если удаляем перевод строки
             if (editor_buffer[editor_pos] == '\n') {
                 editor_y--;
-                editor_x = 39; // В конец предыдущей строки
-                // Находим реальную позицию конца строки
-                for (int x = 39; x >= 1; x--) {
-                    if (vga_buffer[editor_y * VGA_WIDTH + x] != ' ') {
-                        editor_x = x + 1;
-                        break;
-                    }
-                }
+                editor_x = EDITOR_LEFT_X + EDITOR_WIDTH - 1;
             } else {
                 editor_x--;
-                if (editor_x < 1) {
-                    if (editor_y > 6 + BANNER_HEIGHT) {
-                        editor_y--;
-                        editor_x = 39;
-                    } else {
-                        editor_x = 1;
-                    }
-                }
             }
             
-            // Обновляем позицию курсора
+            vga_putchar(' ', VGA_COLOR_BLACK, editor_x, editor_y);
             cursor_x = editor_x;
             cursor_y = editor_y;
-            update_status_bar();
+            update_editor_status();
         }
     }
+    // Обычный символ
     else if (editor_pos < sizeof(editor_buffer) - 1 && key >= 32 && key <= 126) {
-        // Обычный символ
         editor_buffer[editor_pos++] = key;
         
-        // Рисуем символ
         vga_putchar(key, VGA_COLOR_WHITE, editor_x, editor_y);
         editor_x++;
         
-        // Перенос строки внутри редактора
-        if (editor_x >= 40) {
-            editor_x = 1;
+        if (editor_x >= EDITOR_LEFT_X + EDITOR_WIDTH) {
+            editor_x = EDITOR_LEFT_X;
             editor_y++;
-            if (editor_y >= VGA_HEIGHT - 2) {
-                vga_scroll_editor();
-                editor_y = VGA_HEIGHT - 3;
-            }
         }
         
-        // Обновляем позицию курсора
+        if (editor_y >= OUTPUT_START_Y + EDITOR_HEIGHT) {
+            // Прокрутка
+            for (int y = OUTPUT_START_Y+1; y < OUTPUT_START_Y+EDITOR_HEIGHT-1; y++) {
+                for (int x = EDITOR_LEFT_X; x < EDITOR_LEFT_X+EDITOR_WIDTH; x++) {
+                    vga_buffer[y * VGA_WIDTH + x] = vga_buffer[(y+1) * VGA_WIDTH + x];
+                }
+            }
+            editor_y = OUTPUT_START_Y + EDITOR_HEIGHT - 1;
+        }
+        
         cursor_x = editor_x;
         cursor_y = editor_y;
-        update_status_bar();
+        update_editor_status();
     }
 }
 
@@ -1163,52 +1366,53 @@ void terminal_load_file_into_editor(const char* filename) {
     }
     
     // Перерисовываем редактор
-    terminal_redraw_editor();
+    terminal_redraw_editor_text();
 }
 
-// Запуск .goo файла из редактора (Ctrl+R)
 void terminal_run_goo(void) {
-    // Проверяем расширение
-    char* dot = strrchr(current_file, '.');
-    if (dot && strcmp(dot, ".goo") == 0) {
-        terminal_print_at("=== Compiling & Running ===", 42, 6 + BANNER_HEIGHT, VGA_COLOR_CYAN);
-        
-        // Компилируем
-        uint8_t binary[8192];
-        int bin_size = gooc_compile(editor_buffer, binary, sizeof(binary));
-        
-        if (bin_size > 0) {
-            // Сохраняем .goobin
-            char bin_name[64];
-            strcpy(bin_name, current_file);
-            char* dot2 = strrchr(bin_name, '.');
-            if (dot2) *dot2 = 0;
-            strcat(bin_name, ".goobin");
-            
-            // ВАЖНО: Используем новую функцию для сохранения бинарника
-            if (fs_save_goosebin(current_file, bin_name, binary, bin_size)) {
-                // Загружаем и запускаем
-                uint8_t loaded_binary[8192];
-                int loaded_size = fs_load_goosebin(bin_name, loaded_binary, sizeof(loaded_binary));
-                
-                if (loaded_size > 0) {
-                    GooVM* vm = goovm_create();
-                    if (vm) {
-                        if (goovm_load(vm, loaded_binary, loaded_size)) {
-                            terminal_print_at("Executing...", 42, 8 + BANNER_HEIGHT, VGA_COLOR_GREEN);
-                            goovm_execute(vm);
-                        }
-                        goovm_destroy(vm);
-                    }
-                }
-            }
-        } else {
-            terminal_print_at("Compilation failed!", 42, 8 + BANNER_HEIGHT, VGA_COLOR_RED);
-        }
-    } else {
-        terminal_print_at("Not a .goo file!", 20, VGA_HEIGHT - 3, VGA_COLOR_RED);
+    // Сохраняем перед запуском
+    fs_editor_save(current_file, editor_buffer, editor_pos);
+    
+    // Очищаем панель вывода
+    clear_output_panel();
+    print_to_output("=== GOOSE VM EXECUTION ===\n", VGA_COLOR_YELLOW);
+    
+    // Компилируем
+    uint8_t binary[8192];
+    int bin_size = gooc_compile(editor_buffer, binary, sizeof(binary));
+    
+    if (bin_size <= 0) {
+        print_to_output("Compilation failed!\n", VGA_COLOR_RED);
+        return;
     }
+    
+    char buf[32];
+    itoa(bin_size, buf, 10);
+    print_to_output("Compiled: ", VGA_COLOR_GREEN);
+    print_to_output(buf, VGA_COLOR_WHITE);
+    print_to_output(" bytes\n", VGA_COLOR_GREEN);
+    print_to_output("Starting VM...\n\n", VGA_COLOR_CYAN);
+    
+    // Запускаем VM
+    GooVM* vm = goovm_create();
+    if (!vm) {
+        print_to_output("VM creation failed!\n", VGA_COLOR_RED);
+        return;
+    }
+    
+    if (goovm_load(vm, binary, bin_size)) {
+        // Устанавливаем обработчик вывода
+        goovm_set_output_handler(print_to_output);
+        goovm_execute(vm);
+        print_to_output("\n=== VM HALTED ===\n", VGA_COLOR_YELLOW);
+    } else {
+        print_to_output("Failed to load program!\n", VGA_COLOR_RED);
+    }
+    
+    goovm_destroy(vm);
+    terminal_print_at("✓ Execution complete", 43, OUTPUT_START_Y, VGA_COLOR_GREEN);
 }
+
 
 void terminal_open_file(void) {
     // Диалог открытия
@@ -1239,7 +1443,7 @@ void terminal_open_file(void) {
                 editor_buffer[editor_pos] = 0;
                 
                 // Перерисовываем редактор
-                terminal_redraw_editor();
+                terminal_redraw_editor_text();
                 update_status_bar();
                 
                 terminal_print_at("Loaded!             ", 20, VGA_HEIGHT - 3, VGA_COLOR_GREEN);
@@ -1282,57 +1486,49 @@ void terminal_new_file(void) {
     strcpy(current_file, "untitled.txt");
     editor_pos = 0;
     memset(editor_buffer, 0, sizeof(editor_buffer));
-    terminal_redraw_editor();
+    terminal_redraw_editor_text();
     update_status_bar();
     terminal_print_at("New file created!   ", 20, VGA_HEIGHT - 3, VGA_COLOR_GREEN);
 }
-
-void terminal_redraw_editor(void) {
-    // Очищаем область редактирования (под баннером)
-    // От строки 6+BANNER_HEIGHT до предпоследней строки
-    for (int y = 6 + BANNER_HEIGHT; y < VGA_HEIGHT - 2; y++) {
-        for (int x = 1; x < 40; x++) {
+void terminal_redraw_editor_text(void) {
+    // Очищаем область редактора - ТОЛЬКО ВНУТРИ РАМКИ!
+    for (int y = OUTPUT_START_Y+1; y < OUTPUT_START_Y + EDITOR_HEIGHT; y++) {
+        for (int x = EDITOR_LEFT_X; x < EDITOR_LEFT_X + EDITOR_WIDTH; x++) {
             vga_putchar(' ', VGA_COLOR_BLACK, x, y);
         }
     }
     
-    // Перерисовываем текст (начинаем под баннером)
-    editor_x = 1;
-    editor_y = 6 + BANNER_HEIGHT;  // Начало области редактирования
+    // Выводим текст
+    uint32_t x = EDITOR_LEFT_X;
+    uint32_t y = OUTPUT_START_Y+1;
     
-    for (uint32_t i = 0; i < editor_pos && editor_y < VGA_HEIGHT - 2; i++) {
+    for (uint32_t i = 0; i < editor_pos && y < OUTPUT_START_Y + EDITOR_HEIGHT; i++) {
         char c = editor_buffer[i];
         
         if (c == '\n') {
-            editor_x = 1;
-            editor_y++;
-            if (editor_y >= VGA_HEIGHT - 2) {
-                // Достигли нижней границы редактора
-                editor_y = 6 + BANNER_HEIGHT;  // Вернемся к началу области
-            }
-        } else if (c >= 32 && c <= 126) {  // Печатные символы
-            vga_putchar(c, VGA_COLOR_WHITE, editor_x, editor_y);
-            editor_x++;
-            
-            if (editor_x >= 40) {  // Достигли правой границы редактора
-                editor_x = 1;
-                editor_y++;
-                if (editor_y >= VGA_HEIGHT - 2) {
-                    editor_y = 6 + BANNER_HEIGHT;
-                }
+            x = EDITOR_LEFT_X;
+            y++;
+            if (y >= OUTPUT_START_Y + EDITOR_HEIGHT) break;
+        } else if (c >= 32 && c <= 126) {
+            if (x < EDITOR_LEFT_X + EDITOR_WIDTH) {
+                vga_putchar(c, VGA_COLOR_WHITE, x, y);
+                x++;
             }
         }
-        // Непечатные символы игнорируем
     }
     
-    // Обновляем позицию курсора
+    editor_x = x;
+    editor_y = y;
+    if (editor_y >= OUTPUT_START_Y + EDITOR_HEIGHT) {
+        editor_y = OUTPUT_START_Y + EDITOR_HEIGHT - 1;
+    }
+    if (editor_x >= EDITOR_LEFT_X + EDITOR_WIDTH) {
+        editor_x = EDITOR_LEFT_X + EDITOR_WIDTH - 1;
+    }
+    
     cursor_x = editor_x;
     cursor_y = editor_y;
-    
-    // Обновляем статус бар (показывает количество строк)
-    update_status_bar();
 }
-
 void vga_scroll_editor(void) {
     // Прокрутка только области редактирования (под баннером)
     // Область: от (6 + BANNER_HEIGHT) до (VGA_HEIGHT - 3)

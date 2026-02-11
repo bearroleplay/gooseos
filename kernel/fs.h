@@ -53,4 +53,9 @@ int fs_save_goosebin(const char* source_name, const char* binary_name,
                      const uint8_t* binary, uint32_t size);
 int fs_load_goosebin(const char* name, uint8_t* buffer, uint32_t size);
 
+// ========== НОВЫЕ ФУНКЦИИ ДЛЯ АККАУНТОВ ==========
+int fs_chdir_home(void);
+int fs_create_user_dirs(const char* username);
+void fs_print_permission_error(const char* op);
+
 #endif

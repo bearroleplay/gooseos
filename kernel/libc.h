@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 void* memset(void* ptr, int value, size_t num);
+char* strstr(const char* haystack, const char* needle);  // Добавить в libc.h
 void* memcpy(void* dest, const void* src, size_t num);
 int memcmp(const void* ptr1, const void* ptr2, size_t num);
 size_t strlen(const char* str);

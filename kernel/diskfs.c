@@ -143,39 +143,85 @@ int diskfs_init(void) {
         strcpy(file_table[root_index].parent, "");
     }
     
-    // Создаем несколько тестовых файлов
+    // Создаем readme.txt с содержимым
     add_file("readme.txt", DISKFS_TYPE_FILE);
     int readme_idx = find_file("/readme.txt");
     if(readme_idx >= 0) {
-        const char* text = "Welcome to GooseOS!\n\n"
-                          "Available commands:\n"
+        const char* text = "=== Welcome to GooseOS v1.0 ===\n\n"
+                          "This is a simple operating system with:\n"
+                          "- File system (memory-based)\n"
+                          "- Text editor\n"
+                          "- GooseScript programming language\n"
+                          "- Calculator\n"
+                          "- Mouse support\n\n"
+                          "Type 'help' for available commands.\n"
+                          "Type 'edit readme.txt' to edit this file.\n\n"
+                          "Sample commands:\n"
                           "  ls          - List files\n"
-                          "  cd <dir>    - Change directory\n"
-                          "  edit <file> - Edit file\n"
-                          "  mkdir <dir> - Create directory\n"
-                          "  rm <file>   - Delete file\n"
-                          "  help        - Show all commands\n";
+                          "  cd projects - Go to projects folder\n"
+                          "  edit test.goo - Edit GooseScript file\n"
+                          "  calc        - Open calculator\n"
+                          "  mouse       - Mouse test\n\n"
+                          "Have fun exploring!\n";
+        
         file_table[readme_idx].size = strlen(text);
         file_table[readme_idx].data = malloc(file_table[readme_idx].size + 1);
-        strcpy(file_table[readme_idx].data, text);
+        if(file_table[readme_idx].data) {
+            strcpy(file_table[readme_idx].data, text);
+        }
     }
     
-    add_file("test.goo", DISKFS_TYPE_FILE);
-    int test_idx = find_file("/test.goo");
-    if(test_idx >= 0) {
-        const char* code = "print \"Hello from GooseOS!\"\nexit 0";
-        file_table[test_idx].size = strlen(code);
-        file_table[test_idx].data = malloc(file_table[test_idx].size + 1);
-        strcpy(file_table[test_idx].data, code);
+    // Создаем тестовый GooseScript файл
+    add_file("hello.goo", DISKFS_TYPE_FILE);
+    int hello_idx = find_file("/hello.goo");
+    if(hello_idx >= 0) {
+        const char* code = "print \"Hello from GooseOS!\"\n"
+                          "print \"This is a GooseScript program.\"\n"
+                          "push 10\n"
+                          "push 20\n"
+                          "add\n"
+                          "print \"10 + 20 = \"\n"
+                          "print_num\n"
+                          "exit 0\n";
+        
+        file_table[hello_idx].size = strlen(code);
+        file_table[hello_idx].data = malloc(file_table[hello_idx].size + 1);
+        if(file_table[hello_idx].data) {
+            strcpy(file_table[hello_idx].data, code);
+        }
     }
     
+    // Создаем папку projects
     add_file("projects", DISKFS_TYPE_DIR);
+    
+    // Создаем пример в папке projects
+    add_file("projects/demo.goo", DISKFS_TYPE_FILE);
+    int demo_idx = find_file("/projects/demo.goo");
+    if(demo_idx >= 0) {
+        const char* demo_code = "print \"=== GooseScript Demo ===\"\n"
+                               "print \"\"\n"
+                               "print \"Basic math:\"\n"
+                               "push 5\n"
+                               "push 3\n"
+                               "add\n"
+                               "print \"5 + 3 = \"\n"
+                               "print_num\n"
+                               "print \"\"\n"
+                               "print \"Program finished!\"\n"
+                               "exit 0\n";
+        
+        file_table[demo_idx].size = strlen(demo_code);
+        file_table[demo_idx].data = malloc(file_table[demo_idx].size + 1);
+        if(file_table[demo_idx].data) {
+            strcpy(file_table[demo_idx].data, demo_code);
+        }
+    }
     
     fs_mounted = 1;
     strcpy(current_path, "/");
     strcpy(current_dir_name, "/");
     
-    terminal_print("OK\n", VGA_COLOR_GREEN);
+    terminal_print("OK (3 files, 1 directory)\n", VGA_COLOR_GREEN);
     return 1;
 }
 

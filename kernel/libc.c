@@ -3,6 +3,7 @@
 static char heap[65536];
 static size_t heap_ptr = 0;
 
+// ========== ПОРТЫ ==========
 uint8_t inb(uint16_t port) {
     uint8_t ret;
     __asm__ volatile("inb %1, %0" : "=a"(ret) : "Nd"(port));
@@ -23,6 +24,7 @@ void outw(uint16_t port, uint16_t val) {
     __asm__ volatile("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
+// ========== ПАМЯТЬ ==========
 void* memset(void* ptr, int value, size_t num) {
     unsigned char* p = (unsigned char*)ptr;
     while (num--) *p++ = (unsigned char)value;
@@ -45,70 +47,8 @@ int memcmp(const void* ptr1, const void* ptr2, size_t num) {
     }
     return 0;
 }
-// Простая реализация sprintf
-int sprintf(char* str, const char* format, ...) {
-    // Простая реализация - только для %s, %d, %x
-    char* ptr = str;
-    const char* fmt = format;
-    
-    while (*fmt) {
-        if (*fmt == '%') {
-            fmt++;
-            switch (*fmt) {
-                case 's': {
-                    // %s - строка
-                    char* arg = *((char**)(&format + 1));
-                    while (*arg) *ptr++ = *arg++;
-                    fmt++;
-                    break;
-                }
-                case 'd':
-                case 'i': {
-                    // %d - целое число
-                    int arg = *((int*)(&format + 1));
-                    char num[32];
-                    itoa(arg, num, 10);
-                    char* n = num;
-                    while (*n) *ptr++ = *n++;
-                    fmt++;
-                    break;
-                }
-                case 'x':
-                case 'X': {
-                    // %x - шестнадцатеричное
-                    int arg = *((int*)(&format + 1));
-                    char num[32];
-                    itoa(arg, num, 16);
-                    char* n = num;
-                    while (*n) *ptr++ = *n++;
-                    fmt++;
-                    break;
-                }
-                case 'c': {
-                    // %c - символ
-                    char arg = *((char*)(&format + 1));
-                    *ptr++ = arg;
-                    fmt++;
-                    break;
-                }
-                case '%': {
-                    *ptr++ = '%';
-                    fmt++;
-                    break;
-                }
-                default:
-                    *ptr++ = '%';
-                    *ptr++ = *fmt++;
-                    break;
-            }
-        } else {
-            *ptr++ = *fmt++;
-        }
-    }
-    
-    *ptr = 0;
-    return ptr - str;
-}
+
+// ========== СТРОКИ ==========
 size_t strlen(const char* str) {
     size_t len = 0;
     while (str[len]) len++;
@@ -143,6 +83,52 @@ int strncmp(const char* str1, const char* str2, size_t num) {
     return *(unsigned char*)str1 - *(unsigned char*)str2;
 }
 
+char* strcat(char* dest, const char* src) {
+    char* d = dest;
+    while (*d) d++;
+    while (*src) *d++ = *src++;
+    *d = 0;
+    return dest;
+}
+
+char* strchr(const char* str, int ch) {
+    while (*str) {
+        if (*str == ch) return (char*)str;
+        str++;
+    }
+    return NULL;
+}
+
+char* strrchr(const char* str, int ch) {
+    const char* last = NULL;
+    while (*str) {
+        if (*str == ch) last = str;
+        str++;
+    }
+    return (char*)last;
+}
+
+// ========== НОВАЯ ФУНКЦИЯ - strstr() ==========
+char* strstr(const char* haystack, const char* needle) {
+    if (!*needle) return (char*)haystack;
+    
+    while (*haystack) {
+        const char* h = haystack;
+        const char* n = needle;
+        
+        while (*h && *n && *h == *n) {
+            h++;
+            n++;
+        }
+        
+        if (!*n) return (char*)haystack;
+        haystack++;
+    }
+    
+    return NULL;
+}
+
+// ========== ПРЕОБРАЗОВАНИЕ ==========
 char* itoa(int value, char* buffer, int base) {
     if (base < 2 || base > 36) {
         *buffer = 0;
@@ -179,52 +165,12 @@ char* itoa(int value, char* buffer, int base) {
     return buffer;
 }
 
-void* malloc(size_t size) {
-    if (heap_ptr + size > sizeof(heap)) return NULL;
-    void* ptr = &heap[heap_ptr];
-    heap_ptr += size;
-    return ptr;
-}
-
-void free(void* ptr) {
-    // Простая реализация - не освобождаем память
-    (void)ptr;
-}
-
-char* strcat(char* dest, const char* src) {
-    char* d = dest;
-    while (*d) d++;
-    while (*src) *d++ = *src++;
-    *d = 0;
-    return dest;
-}
-// В libc.c добавь в конец:
-
-char* strchr(const char* str, int ch) {
-    while (*str) {
-        if (*str == ch) return (char*)str;
-        str++;
-    }
-    return NULL;
-}
-
-char* strrchr(const char* str, int ch) {
-    const char* last = NULL;
-    while (*str) {
-        if (*str == ch) last = str;
-        str++;
-    }
-    return (char*)last;
-}
-
 int atoi(const char* str) {
     int result = 0;
     int sign = 1;
     
-    // Пропускаем пробелы
     while (*str == ' ' || *str == '\t') str++;
     
-    // Знак
     if (*str == '-') {
         sign = -1;
         str++;
@@ -232,7 +178,6 @@ int atoi(const char* str) {
         str++;
     }
     
-    // Цифры
     while (*str >= '0' && *str <= '9') {
         result = result * 10 + (*str - '0');
         str++;
@@ -240,49 +185,13 @@ int atoi(const char* str) {
     
     return result * sign;
 }
-// В libc.c добавь:
-char* strtok(char* str, const char* delimiters) {
-    static char* next_token = NULL;
-    
-    if (str != NULL) {
-        next_token = str;
-    }
-    
-    if (next_token == NULL || *next_token == 0) {
-        return NULL;
-    }
-    
-    // Пропускаем разделители в начале
-    while (*next_token && strchr(delimiters, *next_token)) {
-        next_token++;
-    }
-    
-    if (*next_token == 0) {
-        return NULL;
-    }
-    
-    char* token_start = next_token;
-    
-    // Ищем следующий разделитель
-    while (*next_token && !strchr(delimiters, *next_token)) {
-        next_token++;
-    }
-    
-    if (*next_token) {
-        *next_token = 0;
-        next_token++;
-    }
-    
-    return token_start;
-}
+
 long strtol(const char* str, char** endptr, int base) {
     long result = 0;
     int sign = 1;
     
-    // Пропускаем пробелы
     while (*str == ' ' || *str == '\t') str++;
     
-    // Знак
     if (*str == '-') {
         sign = -1;
         str++;
@@ -290,7 +199,6 @@ long strtol(const char* str, char** endptr, int base) {
         str++;
     }
     
-    // Префикс для шестнадцатеричной
     if (base == 0 || base == 16) {
         if (*str == '0' && (*(str+1) == 'x' || *(str+1) == 'X')) {
             base = 16;
@@ -298,7 +206,6 @@ long strtol(const char* str, char** endptr, int base) {
         }
     }
     
-    // Префикс для восьмеричной
     if (base == 0) {
         if (*str == '0') {
             base = 8;
@@ -307,7 +214,6 @@ long strtol(const char* str, char** endptr, int base) {
         }
     }
     
-    // Конвертация
     while (*str) {
         int digit;
         if (*str >= '0' && *str <= '9') {
@@ -332,21 +238,125 @@ long strtol(const char* str, char** endptr, int base) {
     
     return sign * result;
 }
-// Абсолютное значение для int
+
+char* strtok(char* str, const char* delimiters) {
+    static char* next_token = NULL;
+    
+    if (str != NULL) {
+        next_token = str;
+    }
+    
+    if (next_token == NULL || *next_token == 0) {
+        return NULL;
+    }
+    
+    while (*next_token && strchr(delimiters, *next_token)) {
+        next_token++;
+    }
+    
+    if (*next_token == 0) {
+        return NULL;
+    }
+    
+    char* token_start = next_token;
+    
+    while (*next_token && !strchr(delimiters, *next_token)) {
+        next_token++;
+    }
+    
+    if (*next_token) {
+        *next_token = 0;
+        next_token++;
+    }
+    
+    return token_start;
+}
+
+// ========== МАТЕМАТИКА ==========
 int abs(int n) {
     return (n < 0) ? -n : n;
 }
 
-// Абсолютное значение для long
 long labs(long n) {
     return (n < 0) ? -n : n;
 }
 
-// Также может понадобиться:
 int max(int a, int b) {
     return (a > b) ? a : b;
 }
 
 int min(int a, int b) {
     return (a < b) ? a : b;
+}
+
+// ========== ПАМЯТЬ (HEAP) ==========
+void* malloc(size_t size) {
+    if (heap_ptr + size > sizeof(heap)) return NULL;
+    void* ptr = &heap[heap_ptr];
+    heap_ptr += size;
+    return ptr;
+}
+
+void free(void* ptr) {
+    (void)ptr;
+}
+
+// ========== ФОРМАТИРОВАНИЕ ==========
+int sprintf(char* str, const char* format, ...) {
+    char* ptr = str;
+    const char* fmt = format;
+    
+    while (*fmt) {
+        if (*fmt == '%') {
+            fmt++;
+            switch (*fmt) {
+                case 's': {
+                    char* arg = *((char**)(&format + 1));
+                    while (*arg) *ptr++ = *arg++;
+                    fmt++;
+                    break;
+                }
+                case 'd':
+                case 'i': {
+                    int arg = *((int*)(&format + 1));
+                    char num[32];
+                    itoa(arg, num, 10);
+                    char* n = num;
+                    while (*n) *ptr++ = *n++;
+                    fmt++;
+                    break;
+                }
+                case 'x':
+                case 'X': {
+                    int arg = *((int*)(&format + 1));
+                    char num[32];
+                    itoa(arg, num, 16);
+                    char* n = num;
+                    while (*n) *ptr++ = *n++;
+                    fmt++;
+                    break;
+                }
+                case 'c': {
+                    char arg = *((char*)(&format + 1));
+                    *ptr++ = arg;
+                    fmt++;
+                    break;
+                }
+                case '%': {
+                    *ptr++ = '%';
+                    fmt++;
+                    break;
+                }
+                default:
+                    *ptr++ = '%';
+                    *ptr++ = *fmt++;
+                    break;
+            }
+        } else {
+            *ptr++ = *fmt++;
+        }
+    }
+    
+    *ptr = 0;
+    return ptr - str;
 }

@@ -32,9 +32,7 @@ jobs:
       run: |
         make clean
         chmod +x scripts/*.sh
-        make format
         make iso
-        ls -la *.iso *.bin
     
     - name: Test in QEMU (headless)
       run: |

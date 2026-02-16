@@ -5,7 +5,6 @@
 #include "libc.h"
 #include "goovm.h"
 #include "cmos.h"
-#include <string.h>
 #include "gooc_simple.h"
 #include "account.h"
 #define BANNER_HEIGHT 5
@@ -1569,4 +1568,5 @@ void vga_scroll_editor(void) {
 int terminal_get_mode(void) {
     return mode;
 }
+
 

@@ -2,7 +2,7 @@
 #include "terminal.h"
 #include "keyboard.h"
 #include "libc.h"
-#include <string.h>
+#include "libc.h"
 
 // Состояние калькулятора
 static CalcState calc;
@@ -467,3 +467,4 @@ void terminal_start_calculator(void) {
     mode = MODE_COMMAND;
     terminal_show_prompt();
 }
+

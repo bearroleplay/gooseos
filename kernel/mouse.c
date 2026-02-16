@@ -4,7 +4,6 @@
 #include "libc.h"
 #include "terminal.h"
 #include "graphics.h"
-#include <string.h>
 
 // Порты PS/2 мыши
 #define MOUSE_DATA    0x60

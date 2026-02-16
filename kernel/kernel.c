@@ -25,7 +25,7 @@ void kernel_main(uint32_t magic, void* mb_info) {
     keyboard_init();
     
     real_boot_update(60, "Loading mouse...");
-    mouse_init();
+   // mouse_init();
     
     // ===== АККАУНТЫ ВРЕМЕННО ОТКЛЮЧЕНЫ =====
     // real_boot_update(70, "Loading user accounts...");

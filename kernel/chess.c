@@ -3,7 +3,7 @@
 #include "keyboard.h"
 #include "libc.h"
 #include "terminal.h"
-#include <string.h>
+#include "libc.h"
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 #define CHESS_BOARD_SIZE 8
@@ -444,4 +444,5 @@ void chess_play(void) {
     }
     
     terminal_clear_with_banner();
+
 }

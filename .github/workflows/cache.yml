@@ -1,20 +1,93 @@
- - name: Cache
- uses: actions/cache@v5.0.3
- with:
- # A list of files, directories, and wildcard patterns to cache and restore
- path: 
- # An explicit key for restoring and saving the cache
- key: 
- # An ordered multiline string listing the prefix-matched keys, that are used for restoring stale cache if no cache hit occurred for key. Note `cache-hit` returns false in this case.
- restore-keys: # optional
- # The chunk size used to split up large files during upload, in bytes
- upload-chunk-size: # optional
- # An optional boolean when enabled, allows windows runners to save or restore caches that can be restored or saved respectively on other platforms
- enableCrossOsArchive: # optional, default is false
- # Fail the workflow if cache entry is not found
- fail-on-cache-miss: # optional, default is false
- # Check if a cache entry exists for the given input(s) (key, restore-keys) without downloading the cache
- lookup-only: # optional, default is false
- # Run the post step to save the cache even if another step before fails
- save-always: # optional, default is false
- 
+name: Cache Dependencies
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Cache APT packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          /var/cache/apt/archives
+          ~/.cache/apt
+        key: ${{ runner.os }}-apt-${{ hashFiles('**/setup.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-
+          
+    - name: Cache NASM
+      uses: actions/cache@v3
+      with:
+        path: |
+          /usr/bin/nasm
+          /usr/share/nasm
+        key: ${{ runner.os }}-nasm-${{ hashFiles('**/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-nasm-
+          
+    - name: Cache QEMU
+      uses: actions/cache@v3
+      with:
+        path: |
+          /usr/bin/qemu-system-i386
+          /usr/share/qemu
+        key: ${{ runner.os }}-qemu-${{ hashFiles('**/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-qemu-
+          
+    - name: Cache GRUB
+      uses: actions/cache@v3
+      with:
+        path: |
+          /usr/bin/grub-mkrescue
+          /usr/lib/grub
+        key: ${{ runner.os }}-grub-${{ hashFiles('**/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-grub-
+          
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          nasm \
+          qemu-system-x86 \
+          grub-pc-bin \
+          grub-common \
+          xorriso \
+          mtools
+          
+    - name: Cache compiled objects
+      uses: actions/cache@v3
+      with:
+        path: |
+          kernel/*.o
+          *.bin
+          *.iso
+          *.img
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+          
+    - name: Build GooseOS
+      run: |
+        make clean
+        make
+        make gooseos.iso
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: gooseos-build
+        path: |
+          kernel.bin
+          gooseos.iso
+          disk.img

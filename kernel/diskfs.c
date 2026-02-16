@@ -1,7 +1,7 @@
 #include "diskfs.h"
 #include "libc.h"
 #include "terminal.h"
-#include <string.h>
+#include "libc.h"
 
 // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 static int fs_mounted = 0;
@@ -618,4 +618,5 @@ void diskfs_list(void) {
 uint32_t diskfs_free_space(void) {
     // В памяти все всегда есть место :)
     return 1024 * 1024; // 1MB условно
+
 }

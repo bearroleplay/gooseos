@@ -4,7 +4,7 @@
 #include "fs.h"
 #include "libc.h"
 #include "cmos.h"
-#include <string.h>
+#include "libc.h" 
 
 // Глобальная система аккаунтов - ОБЯЗАТЕЛЬНО ОБНУЛЯТЬ!
 AccountSystem acct_sys;
@@ -730,4 +730,5 @@ void account_show_user_manager(void) {
 
 void account_init(void) {
     // Заглушка
+
 }

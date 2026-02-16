@@ -2,6 +2,7 @@
 #include "panic.h"
 #include "vga.h"
 #include "libc.h"
+#include "beep.h"
 #include <stdarg.h>
 
 // Текущий режим паники
@@ -86,6 +87,7 @@ static void print_centered(int y, const char* text, uint8_t fg, uint8_t bg) {
 
 // Показать экран паники
 void panic_show(PanicMode mode, const char* message, uint32_t code) {
+    beep_critical();
     panic_mode = mode;
     panic_code = code;
     
@@ -221,3 +223,4 @@ void panic_if(int condition, const char* message, uint32_t code) {
         panic_kernel(message, code);
     }
 }
+

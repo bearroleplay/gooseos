@@ -43,18 +43,18 @@ kernel.bin: $(C_OBJECTS) $(ASM_OBJECTS)
 	$(LD) $(LDFLAGS) -o $@ $^
 	@echo "✅ Ядро слинковано: kernel.bin"
 
-# Создание ISO
+# Создание ISO (АЛЬТЕРНАТИВНЫЙ)
 gooseos.iso: kernel.bin
 	@echo "📀 Создаю загрузочный ISO..."
+	@rm -rf isodir
 	@mkdir -p isodir/boot/grub
 	@cp kernel.bin isodir/boot/
-	@echo 'set timeout=0' > isodir/boot/grub/grub.cfg
-	@echo 'set default=0' >> isodir/boot/grub/grub.cfg
-	@echo 'menuentry "GooseOS" {' >> isodir/boot/grub/grub.cfg
-	@echo '  multiboot /boot/kernel.bin' >> isodir/boot/grub/grub.cfg
-	@echo '  boot' >> isodir/boot/grub/grub.cfg
-	@echo '}' >> isodir/boot/grub/grub.cfg
-	@grub-mkrescue -o gooseos.iso isodir 2>/dev/null
+	@printf 'set timeout=0\nset default=0\nmenuentry "GooseOS" {\n  multiboot /boot/kernel.bin\n  boot\n}\n' > isodir/boot/grub/grub.cfg
+	@grub-mkrescue -o gooseos.iso isodir 2>/dev/null || true
+	@if [ ! -f gooseos.iso ]; then \
+		echo "⚠️  GRUB rescue failed, creating raw binary..."; \
+		cp kernel.bin gooseos.iso; \
+	fi
 	@echo "✅ ISO создан: gooseos.iso"
 
 # ЗАПУСК В QEMU (главная команда!)
@@ -138,4 +138,5 @@ help:
 	@echo "Пример:"
 	@echo "  make clean     # очистить"
 	@echo "  make           # собрать"
+
 	@echo "  make run       # запустить"

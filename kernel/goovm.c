@@ -1,7 +1,6 @@
 #include "goovm.h"
 #include "terminal.h"
 #include "libc.h"
-#include <string.h>
 
 // Обработчик вывода по умолчанию
 static void default_output_handler(const char* str, uint8_t color) {
@@ -216,4 +215,5 @@ void goovm_print_state(GooVM* vm) {
     itoa(vm->code_size, buf, 10);
     output_handler(buf, VGA_COLOR_WHITE);
     output_handler("\n", VGA_COLOR_WHITE);
+
 }

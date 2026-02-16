@@ -2,53 +2,69 @@ name: Build GooseOS
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
   pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:  # Позволяет запускать вручную
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Install dependencies
+      
+    - name: Cache APT
+      uses: actions/cache@v3
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-apt-${{ hashFiles('**/setup.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-apt-
+          
+    - name: Install toolchain
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           nasm \
-          gcc \
           gcc-multilib \
-          make \
+          ld \
           grub-pc-bin \
+          grub-common \
           xorriso \
           mtools \
           qemu-system-x86
-    
-    - name: Build GooseOS
+          
+    - name: Cache build
+      uses: actions/cache@v3
+      with:
+        path: |
+          kernel/*.o
+          kernel/*.a
+        key: ${{ runner.os }}-build-${{ hashFiles('kernel/**/*.c', 'kernel/**/*.h', 'kernel/**/*.asm') }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+          
+    - name: Build
       run: |
         make clean
-        chmod +x scripts/*.sh
-        make iso
-    
-    - name: Test in QEMU (headless)
-      run: |
-        timeout 10s qemu-system-i386 \
-          -cdrom gooseos.iso \
-          -m 128M \
-          -nographic \
-          -serial stdio \
-          -no-reboot \
-          || true  # Игнорируем таймаут
-    
-    - name: Upload build artifacts
+        make -j$(nproc)
+        
+    - name: Create ISO
+      run: make gooseos.iso
+      
+    - name: Upload ISO
       uses: actions/upload-artifact@v4
       with:
-        name: gooseos-build
-        path: |
-          kernel.bin
-          gooseos.iso
-        retention-days: 7
+        name: gooseos-iso
+        path: gooseos.iso
+        retention-days: 30
+        
+    - name: Upload kernel
+      uses: actions/upload-artifact@v4
+      with:
+        name: gooseos-kernel
+        path: kernel.bin
+        retention-days: 30

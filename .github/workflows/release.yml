@@ -1,0 +1,57 @@
+name: Release GooseOS
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Cache APT
+      uses: actions/cache@v3
+      with:
+        path: /var/cache/apt/archives
+        key: ${{ runner.os }}-apt-release
+        restore-keys: |
+          ${{ runner.os }}-apt-
+          
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y nasm gcc-multilib grub-pc-bin xorriso mtools
+        
+    - name: Cache build
+      uses: actions/cache@v3
+      with:
+        path: |
+          kernel/*.o
+          *.bin
+          *.iso
+          *.img
+        key: ${{ runner.os }}-release-${{ github.sha }}
+        
+    - name: Build
+      run: |
+        make clean
+        make
+        make gooseos.iso
+        
+    - name: Create release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          kernel.bin
+          gooseos.iso
+          disk.img
+        generate_release_notes: true
+        prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

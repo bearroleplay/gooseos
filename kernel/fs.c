@@ -3,7 +3,7 @@
 #include "account.h"
 #include "libc.h"
 #include "terminal.h"
-#include <string.h>
+#include "libc.h"
 
 FileSystem fs;
 
@@ -400,4 +400,5 @@ void fs_print_permission_error(const char* op) {
     terminal_print("Permission denied: ", VGA_COLOR_RED);
     terminal_print(op, VGA_COLOR_WHITE);
     terminal_print("\n", VGA_COLOR_RED);
+
 }

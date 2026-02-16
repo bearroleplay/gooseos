@@ -3,7 +3,6 @@
 #include "vga.h"
 #include "libc.h"
 #include "beep.h"
-#include <stdarg.h>
 
 // Текущий режим паники
 static PanicMode panic_mode = PANIC_NONE;
@@ -223,4 +222,5 @@ void panic_if(int condition, const char* message, uint32_t code) {
         panic_kernel(message, code);
     }
 }
+
 

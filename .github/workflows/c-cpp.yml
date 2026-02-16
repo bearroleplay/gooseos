@@ -24,18 +24,27 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-apt-
           
-    - name: Install toolchain
+    - name: Install 32-bit toolchain
       run: |
+        sudo dpkg --add-architecture i386
         sudo apt-get update
         sudo apt-get install -y \
           nasm \
           gcc-multilib \
-          ld \
+          g++-multilib \
+          libc6-dev:i386 \
+          libc6-dev-i386 \
+          lib32gcc-11-dev \
+          lib32stdc++6 \
           grub-pc-bin \
           grub-common \
           xorriso \
           mtools \
           qemu-system-x86
+        # Проверка установки
+        gcc -m32 --version
+        ls -la /usr/include/ || true
+        ls -la /usr/include/i386-linux-gnu/ || true
           
     - name: Cache build
       uses: actions/cache@v3
@@ -50,7 +59,7 @@ jobs:
     - name: Build
       run: |
         make clean
-        make -j$(nproc)
+        make -j$(nproc) CFLAGS="-m32 -std=c99 -ffreestanding -O2 -Wall -Wextra -nostdlib -fno-builtin -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 -I/usr/include/i386-linux-gnu"
         
     - name: Create ISO
       run: make gooseos.iso

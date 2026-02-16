@@ -445,6 +445,23 @@ void terminal_execute_command(const char* cmd) {
         
         terminal_print("\nType 'help <page>' for more (1-6)\n", VGA_COLOR_LIGHT_GRAY);
     }
+    else if (strcmp(tokens[0], "beep") == 0) {
+    if (token_count >= 3) {
+        // beep <частота> <длительность>
+        int freq = atoi(tokens[1]);
+        int dur = atoi(tokens[2]);
+        beep_freq(freq, dur);
+        terminal_print(" BEEP! (", VGA_COLOR_GREEN);
+        terminal_print(tokens[1], VGA_COLOR_WHITE);
+        terminal_print("Hz, ", VGA_COLOR_GREEN);
+        terminal_print(tokens[2], VGA_COLOR_WHITE);
+        terminal_print("ms)\n", VGA_COLOR_GREEN);
+    } else {
+        // Просто beep
+        beep();
+        terminal_print(" BEEP!\n", VGA_COLOR_GREEN);
+    }
+}
     else if(strcmp(tokens[0], "clear") == 0) {
         terminal_clear_with_banner();
         terminal_show_prompt();
@@ -1552,3 +1569,4 @@ void vga_scroll_editor(void) {
 int terminal_get_mode(void) {
     return mode;
 }
+

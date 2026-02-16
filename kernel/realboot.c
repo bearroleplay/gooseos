@@ -3,7 +3,6 @@
 #include "vga.h"
 #include "libc.h"
 #include "panic.h"
-#include <string.h>
 
 // Текущий прогресс
 static int current_percent = 0;
@@ -162,3 +161,4 @@ int real_check_memory(void* mb_info) {
     real_boot_update(20, "Memory OK");
     return 1;
 }
+

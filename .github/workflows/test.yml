@@ -1,0 +1,36 @@
+name: Test GooseOS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/apt
+          /var/cache/apt/archives
+        key: ${{ runner.os }}-test-${{ hashFiles('**/setup.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-test-
+          
+    - name: Install
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y nasm gcc-multilib qemu-system-x86
+        
+    - name: Build
+      run: make
+      
+    - name: Quick test in QEMU
+      run: |
+        timeout 10s qemu-system-i386 -kernel kernel.bin -nographic || true

@@ -1,7 +1,7 @@
 #include "gooc_simple.h"
 #include "libc.h"
 #include "terminal.h"
-#include <string.h>
+#include "libc.h"
 
 // Коды операций
 #define OP_PUSH      0x01
@@ -97,4 +97,5 @@ int gooc_compile(const char* source, uint8_t* output, uint32_t max_size) {
     }
     
     return out_ptr;
+
 }
